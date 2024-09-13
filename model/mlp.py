@@ -14,9 +14,10 @@ class MLPWithSelfAblation(nn.Module):
         self.act = NewGELUActivation()
 
     def forward(self, x, ablation_mask=None):
-        activations = self.act(self.c_fc(x))
+        hidden_states = self.c_fc(x)
+        hidden_states = self.act(hidden_states)
 
         if ablation_mask is not None:
-            activations = activations * ablation_mask
+            hidden_states = hidden_states * ablation_mask
 
-        return self.c_proj(activations)
+        return self.c_proj(hidden_states)

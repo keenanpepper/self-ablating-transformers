@@ -13,9 +13,7 @@ def soft_top_k(x, k, temperature=1.0, eps=1e-12):
     assert k < x.shape[-1]
     threshold = ((sorted_x[..., k-1] + sorted_x[..., k]) / 2).unsqueeze(-1)
 
-    # "temperature" is actually a temperature modifier because
-    # the temperature we're going to use is related to the difference
-    # between those k-th and (k+1)-th largest values above
+    # Calculate temperature
     temperature = (sorted_x[..., k-1] - sorted_x[..., k]).unsqueeze(-1) * temperature
     assert torch.all(temperature >= 0)
 
@@ -41,21 +39,21 @@ class GPTNeoWithSelfAblation(nn.Module):
             ln_f = nn.LayerNorm(config.hidden_size, eps=1e-5)
         ))
         self.lm_head = nn.Linear(config.hidden_size, config.vocab_size, bias=False)
-        self.attention_ablations_head = nn.Linear(config.hidden_size, math.prod(self.get_attention_ablations_shape(1, 1)))
-        self.neuron_ablations_head = nn.Linear(config.hidden_size, math.prod(self.get_neuron_ablations_shape(1, 1)))
+        
+        # Layer-wise ablation heads
+        self.attention_ablation_heads = nn.ModuleList([
+            nn.Linear(config.hidden_size, config.hidden_size)
+            for _ in range(config.num_layers)
+        ])
+        self.neuron_ablation_heads = nn.ModuleList([
+            nn.Linear(config.hidden_size, config.mlp_hidden_size)
+            for _ in range(config.num_layers)
+        ])
 
-        # tie weights
+        # Tie weights
         self.transformer.wte.weight = self.lm_head.weight
 
-    def get_attention_ablations_shape(self, batch_size, block_size):
-        return torch.Size([batch_size, block_size, self.config.num_layers, self.config.hidden_size])
-
-    def get_neuron_ablations_shape(self, batch_size, block_size):
-        return torch.Size([batch_size, block_size, self.config.num_layers, self.config.mlp_hidden_size])
-
-    def forward(self, input_ids, targets=None, attention_ablations=None, neuron_ablations=None):
-        second_pass = attention_ablations is not None or neuron_ablations is not None
-
+    def forward(self, input_ids, targets=None):
         device = input_ids.device
         b, t = input_ids.shape
         pos = torch.arange(0, t, dtype=torch.long, device=device).unsqueeze(0)
@@ -63,55 +61,65 @@ class GPTNeoWithSelfAblation(nn.Module):
         tok_emb = self.transformer.wte(input_ids)
         pos_emb = self.transformer.wpe(pos)
 
-        x_clean = tok_emb + pos_emb
-        if second_pass:
-            x_ablated = x_clean
+        x_clean = x_ablated = tok_emb + pos_emb
+
+        total_reconstruction_loss = 0
 
         for i, block in enumerate(self.transformer.h):
             x_clean = block(x_clean, x_clean)
-            if second_pass:
-                x_ablated = block(x_ablated, x_clean, attention_ablations[:,:,i,:], neuron_ablations[:,:,i,:])
 
-        x = x_ablated if second_pass else x_clean
+            attention_ablation = self.attention_ablation_heads[i](x_clean)
+            attention_ablation = soft_top_k(attention_ablation, self.config.k_attention, self.config.temperature_attention)
+            
+            neuron_ablation = self.neuron_ablation_heads[i](x_clean)
+            neuron_ablation = soft_top_k(neuron_ablation, self.config.k_neurons, self.config.temperature_neurons)
+            
+            x_ablated = block(x_ablated, x_clean, attention_ablation, neuron_ablation)
 
-        x = self.transformer.ln_f(x)
-        logits = self.lm_head(x)
+            # Compute reconstruction loss for this layer with normalization
+            x_clean_norm = F.normalize(x_clean, p=2, dim=-1)
+            x_ablated_norm = F.normalize(x_ablated, p=2, dim=-1)
+            layer_reconstruction_loss = F.mse_loss(x_clean_norm, x_ablated_norm)
+            total_reconstruction_loss += layer_reconstruction_loss
 
-        L_base = None
+        x_clean = self.transformer.ln_f(x_clean)
+        x_ablated = self.transformer.ln_f(x_ablated)
+
+        # Final layer reconstruction loss
+        x_clean_norm = F.normalize(x_clean, p=2, dim=-1)
+        x_ablated_norm = F.normalize(x_ablated, p=2, dim=-1)
+        final_reconstruction_loss = F.mse_loss(x_clean_norm, x_ablated_norm)
+        total_reconstruction_loss += final_reconstruction_loss
+
+        logits_clean = self.lm_head(x_clean)
+        logits_ablated = self.lm_head(x_ablated)
+
+        outputs = {
+            "logits_clean": logits_clean,
+            "logits_ablated": logits_ablated,
+        }
+
         if targets is not None:
-            logits_view = logits.view(-1, logits.size(-1))
-            targets_view = targets.view(-1)
-            L_base = F.cross_entropy(logits_view, targets_view)
+            loss_clean = F.cross_entropy(logits_clean.view(-1, logits_clean.size(-1)), targets.view(-1))
+            loss_ablated = F.cross_entropy(logits_ablated.view(-1, logits_ablated.size(-1)), targets.view(-1))
+            
+            # Average the reconstruction loss over all layers
+            avg_reconstruction_loss = total_reconstruction_loss / (self.config.num_layers + 1)
+            
+            # Combine losses
+            beta = self.config.beta
+            loss = beta * loss_ablated + (1 - beta) * loss_clean + self.config.reconstruction_coeff * avg_reconstruction_loss
 
-        if second_pass:
-            return {"logits": logits, "L_base": L_base}
-        else:
-            output_attention_ablations = self.attention_ablations_head(x)
-            output_attention_ablations = soft_top_k(output_attention_ablations, self.config.k_attention, self.config.temperature_attention)
-            output_attention_ablations = output_attention_ablations.reshape(self.get_attention_ablations_shape(b, t))
-            output_neuron_ablations = self.neuron_ablations_head(x)
-            output_neuron_ablations = soft_top_k(output_neuron_ablations, self.config.k_neurons, self.config.temperature_neurons)
-            output_neuron_ablations = output_neuron_ablations.reshape(self.get_neuron_ablations_shape(b, t))
-            second_pass_output = self.forward(input_ids, targets, output_attention_ablations, output_neuron_ablations)
-            logits_ablated = second_pass_output["logits"]
-            L_total = L_ablated = L_attention_density = L_neuron_density = None
-            if targets is not None:
-                L_ablated = second_pass_output["L_base"]
-                L_attention_density = output_attention_ablations.mean()
-                L_neuron_density = output_neuron_ablations.mean()
-                L_total = sum([self.config.loss_coeff_base * L_base,
-                               self.config.loss_coeff_ablated * L_ablated])
-            return {"logits": logits,
-                    "logits_ablated": logits_ablated,
-                    "L_base": L_base,
-                    "L_ablated": L_ablated,
-                    "loss": L_total,
-                    "attention_ablations": output_attention_ablations,
-                    "neuron_ablations": output_neuron_ablations,
-                    "attention_ablation_mask_density": L_attention_density,
-                    "neuron_ablation_mask_density": L_neuron_density}
+            outputs.update({
+                "loss": loss,
+                "loss_clean": loss_clean,
+                "loss_ablated": loss_ablated,
+                "reconstruction_loss": avg_reconstruction_loss,
+            })
 
-    def generate(self, input_ids, max_new_tokens, temperature=1.0, ablated=False):
+        return outputs
+
+    def generate(self, input_ids, max_new_tokens, temperature=1.0, use_ablated=True):
         self.eval()
         device = next(self.parameters()).device
 
@@ -120,60 +128,13 @@ class GPTNeoWithSelfAblation(nn.Module):
         for _ in range(max_new_tokens):
             x_crop = x[:, -self.config.max_position_embeddings:]
 
-            ret = self(x_crop)
-            logits = ret["logits_ablated"] if ablated else ret["logits"]
+            with torch.no_grad():
+                outputs = self(x_crop)
+                logits = outputs["logits_ablated"] if use_ablated else outputs["logits_clean"]
 
             logits = logits[:, -1, :] / temperature
-
             probs = F.softmax(logits, dim=-1)
-
             next_token = torch.multinomial(probs, num_samples=1)
-
             x = torch.cat((x, next_token), dim=1)
-
-        return x[0].tolist()
-
-    def generate_hard_cutoff_ablated(self, input_ids, max_new_tokens, temperature=1.0, attention_threshold=0.5, neuron_threshold=0.5):
-        """
-        TODO delete this or make it work with the top-K stuff
-        """
-        self.eval()
-        device = next(self.parameters()).device
-
-        x = torch.tensor(input_ids, dtype=torch.long, device=device).unsqueeze(0) if isinstance(input_ids, list) else input_ids.to(device)
-
-        att_densities = []
-        neu_densities = []
-        att_nonzeros = []
-        neu_nonzeros = []
-
-        for _ in range(max_new_tokens):
-            x_crop = x[:, -self.config.max_position_embeddings:]
-
-            ret = self(x_crop)
-            attention_ablations, neuron_ablations = ret["attention_ablations"], ret["neuron_ablations"]
-            attention_ablations_clipped = torch.where(attention_ablations > attention_threshold, attention_ablations, torch.zeros_like(attention_ablations))
-            neuron_ablations_clipped = torch.where(neuron_ablations > neuron_threshold, neuron_ablations, torch.zeros_like(neuron_ablations))
-            ret2 = self(x_crop, attention_ablations=attention_ablations_clipped, neuron_ablations=neuron_ablations_clipped)
-            att_which_clipped = torch.where(attention_ablations > attention_threshold, torch.ones_like(attention_ablations), torch.zeros_like(attention_ablations))
-            neu_which_clipped = torch.where(neuron_ablations > neuron_threshold, torch.ones_like(neuron_ablations), torch.zeros_like(neuron_ablations))
-            att_densities.append(att_which_clipped[:,-1].mean().item())
-            neu_densities.append(neu_which_clipped[:,-1].mean().item())
-            att_nonzeros.append(att_which_clipped[:,-1].sum().item())
-            neu_nonzeros.append(neu_which_clipped[:,-1].sum().item())
-            logits = ret2["logits"]
-
-            logits = logits[:, -1, :] / temperature
-
-            probs = F.softmax(logits, dim=-1)
-
-            next_token = torch.multinomial(probs, num_samples=1)
-
-            x = torch.cat((x, next_token), dim=1)
-
-        att_mean = torch.tensor(att_densities).mean()
-        neu_mean = torch.tensor(neu_densities).mean()
-        print(f"attention nonzero density {att_mean}, neuron nonzero density {neu_mean}")
-        print(f"attention nonzero elements per token {att_nonzeros}, neuron nonzero elements per token {neu_nonzeros}")
 
         return x[0].tolist()
