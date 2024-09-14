@@ -19,8 +19,10 @@ class GPTNeoWithSelfAblationConfig:
         temperature_attention=0.1,
         temperature_neurons=0.1,
         beta=0.9,
-        reconstruction_coeff=0.1
+        reconstruction_coeff=0.1,
+        top_k_epsilon=1e-12
     ):
+        self.top_k_epsilon = top_k_epsilon
         self.vocab_size = vocab_size
         self.hidden_size = hidden_size
         self.mlp_hidden_size = 4 * self.hidden_size if mlp_hidden_size is None else mlp_hidden_size

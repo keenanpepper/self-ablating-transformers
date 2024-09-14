@@ -3,14 +3,31 @@ import torch.nn as nn
 from .attention import AttentionWithSelfAblation
 from .mlp import MLPWithSelfAblation
 
-def soft_top_k(x, k, temperature=1.0, eps=1e-12):
-    sorted_x, _ = torch.sort(x, descending=True)
-    k = min(k, x.size(-1)) # Ensure that k is not larger than the number of elements in x
+def soft_top_k(x, k, temperature=1.0, eps=None):
+    if eps is None:
+        eps = x.new_tensor(1e-12) # Default epsilon value if not provided
+
+    # Sort the input
+    sorted_x, indices = torch.sort(x, descending=True)
+
+    # Calculate the threshold as the midpoint between k-th and (k+1)-th largest values
+    assert k < x.shape[-1]
     threshold = ((sorted_x[..., k-1] + sorted_x[..., k]) / 2).unsqueeze(-1)
+
+    # Calculate temperature
     temperature = (sorted_x[..., k-1] - sorted_x[..., k]).unsqueeze(-1) * temperature
+    assert torch.all(temperature >= 0)
+
+    # Compute the difference from the threshold
     diff = (x - threshold) / (temperature + eps)
+
+    # Apply sigmoid to get soft selection weights
     weights = torch.sigmoid(diff)
-    return weights * (k / weights.sum(-1, keepdim=True))
+
+    # Normalize weights to sum to k
+    weights = weights * (k / weights.sum(-1).unsqueeze(-1))
+
+    return weights
 
 class GPTNeoBlockWithSelfAblation(nn.Module):
     def __init__(self, config, layer_id):
@@ -28,10 +45,10 @@ class GPTNeoBlockWithSelfAblation(nn.Module):
     def forward(self, x_ablated, x_clean):
         # Generate ablation masks
         attn_ablation = self.attention_ablation_head(x_clean)
-        attn_ablation = soft_top_k(attn_ablation, self.config.k_attention, self.config.temperature_attention)
+        attn_ablation = soft_top_k(attn_ablation, self.config.k_attention, self.config.temperature_attention, eps=self.config.top_k_epsilon)
         
         neuron_ablation = self.neuron_ablation_head(x_clean)
-        neuron_ablation = soft_top_k(neuron_ablation, self.config.k_neurons, self.config.temperature_neurons)
+        neuron_ablation = soft_top_k(neuron_ablation, self.config.k_neurons, self.config.temperature_neurons, eps=self.config.top_k_epsilon)
 
         # Process x_clean
         attn_output_clean = self.attn(self.ln_1(x_clean), self.ln_1(x_clean))

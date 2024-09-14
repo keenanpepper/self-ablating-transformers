@@ -5,28 +5,6 @@ import math
 from .config import GPTNeoWithSelfAblationConfig
 from .block import GPTNeoBlockWithSelfAblation
 
-def soft_top_k(x, k, temperature=1.0, eps=1e-12):
-    # Sort the input
-    sorted_x, indices = torch.sort(x, descending=True)
-
-    # Calculate the threshold as the midpoint between k-th and (k+1)-th largest values
-    assert k < x.shape[-1]
-    threshold = ((sorted_x[..., k-1] + sorted_x[..., k]) / 2).unsqueeze(-1)
-
-    # Calculate temperature
-    temperature = (sorted_x[..., k-1] - sorted_x[..., k]).unsqueeze(-1) * temperature
-    assert torch.all(temperature >= 0)
-
-    # Compute the difference from the threshold
-    diff = (x - threshold) / (temperature + eps)
-
-    # Apply sigmoid to get soft selection weights
-    weights = torch.sigmoid(diff)
-
-    # Normalize weights to sum to k
-    weights = weights * (k / weights.sum(-1).unsqueeze(-1))
-
-    return weights
 
 class GPTNeoWithSelfAblation(nn.Module):
     def __init__(self, config):
@@ -65,16 +43,10 @@ class GPTNeoWithSelfAblation(nn.Module):
 
         total_reconstruction_loss = 0
 
-        for i, block in enumerate(self.transformer.h):
-            x_clean = block(x_clean, x_clean)
+        for block in self.transformer.h:
 
-            attention_ablation = self.attention_ablation_heads[i](x_clean)
-            attention_ablation = soft_top_k(attention_ablation, self.config.k_attention, self.config.temperature_attention)
-            
-            neuron_ablation = self.neuron_ablation_heads[i](x_clean)
-            neuron_ablation = soft_top_k(neuron_ablation, self.config.k_neurons, self.config.temperature_neurons)
-            
-            x_ablated = block(x_ablated, x_clean, attention_ablation, neuron_ablation)
+            x_clean = block(x_clean, x_clean)
+            x_ablated = block(x_ablated, x_clean)
 
             # Compute reconstruction loss for this layer with normalization
             x_clean_norm = F.normalize(x_clean, p=2, dim=-1)
