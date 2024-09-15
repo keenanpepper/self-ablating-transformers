@@ -45,8 +45,7 @@ class GPTNeoWithSelfAblation(nn.Module):
 
         for block in self.transformer.h:
 
-            x_clean = block(x_clean, x_clean)
-            x_ablated = block(x_ablated, x_clean)
+            x_ablated, x_clean = block(x_ablated, x_clean)
 
             # Compute reconstruction loss for this layer with normalization
             x_clean_norm = F.normalize(x_clean, p=2, dim=-1)

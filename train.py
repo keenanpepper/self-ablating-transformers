@@ -7,6 +7,7 @@ from model.config import GPTNeoWithSelfAblationConfig, TrainingConfig
 from utils.data_preparation import prepare_data
 import numpy as np
 import wandb
+from dotenv import load_dotenv
 
 class BatchGenerator:
     def __init__(self, data_file, block_size, batch_size, device):
@@ -69,6 +70,7 @@ def train_gptneo(model, config):
         model.train()
         # Get batch
         x, y = train_batch_gen.get_batch()
+        
         # Forward pass
         train_outputs = model(x, targets=y)
         loss = train_outputs['loss']
@@ -111,30 +113,17 @@ def train_gptneo(model, config):
             torch.save(model.state_dict(), config.save_path)
             print(f"New best model saved to {config.save_path}")
             wandb.save(config.save_path) # Save the model to wandb
+            print(f"Model saved to wandb")
 
-
-
-
-        
-        # Logging
-        # if (iteration + 1) % config.log_interval == 0:
-        #     stats = loss_estimator.estimate_loss()
-        #     print(f"Iteration {iteration}: train loss {stats['train']['loss']:.4f}, val loss {stats['val']['loss']:.4f}")
-        #     print(f"train loss_clean {stats['train']['loss_clean']:.4f}, val loss_clean {stats['val']['loss_clean']:.4f}")
-        #     print(f"train loss_ablated {stats['train']['loss_ablated']:.4f}, val loss_ablated {stats['val']['loss_ablated']:.4f}")
-        #     print(f"train reconstruction_loss {stats['train']['reconstruction_loss']:.4f}, val reconstruction_loss {stats['val']['reconstruction_loss']:.4f}")
-        #     print(f"The current learning rate: {optimizer.param_groups[0]['lr']:.4f}")
-            
-        #     # Save best model
-        #     if stats['val']['loss'] < best_val_loss:
-        #         best_val_loss = stats['val']['loss']
-        #         torch.save(model.state_dict(), config.save_path)
-        #         print(f"New best model saved to {config.save_path}")
     
     print("Training completed!")
     wandb.finish() # Finish the wandb run
 
 if __name__ == "__main__":
+
+    print("Loading environment variables")
+    load_dotenv()
+    
     # Set up configuration
     model_config = GPTNeoWithSelfAblationConfig(hidden_size=128) # Should we just change the default size?
         
@@ -145,6 +134,7 @@ if __name__ == "__main__":
     model = GPTNeoWithSelfAblation(model_config)
 
     # Prepare data
+    print("Preparing data")
     prepare_data(output_file=training_config.train_file)
     prepare_data(split='validation', output_file=training_config.val_file)
 

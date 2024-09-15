@@ -43,7 +43,8 @@ class GPTNeoBlockWithSelfAblation(nn.Module):
         self.neuron_ablation_head = nn.Linear(config.hidden_size, config.mlp_hidden_size)
 
     def forward(self, x_ablated, x_clean):
-        # Generate ablation masks
+        
+        # Generate ablation masks before passing through layers
         attn_ablation = self.attention_ablation_head(x_clean)
         attn_ablation = soft_top_k(attn_ablation, self.config.k_attention, self.config.temperature_attention, eps=self.config.top_k_epsilon)
         
@@ -60,4 +61,4 @@ class GPTNeoBlockWithSelfAblation(nn.Module):
         x_ablated = x_ablated + attn_output_ablated
         x_ablated = x_ablated + self.mlp(self.ln_2(x_ablated), neuron_ablation)
 
-        return x_ablated, x_clean, attn_ablation, neuron_ablation
+        return x_ablated, x_clean

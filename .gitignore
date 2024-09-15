@@ -163,6 +163,8 @@ cython_debug/
 explore.ipynb
 .DS_Store
 
-train.bin
-validation.bin
+# Project specific files
+*.bin
+.env
+*.out
 wandb/
