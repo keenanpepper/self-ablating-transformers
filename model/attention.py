@@ -21,8 +21,8 @@ class AttentionWithSelfAblation(nn.Module):
     def forward(self, x, x_clean, ablation_mask=None):
         batch_size, seq_len, _ = x.shape
 
-        assert x.shape == x_ablated.shape
-        assert x.device == x_ablated.device
+        assert x_clean.shape == x.shape
+        assert x_clean.device == x.device
 
         q = self.attention.q_proj(x).view(batch_size, seq_len, self.num_heads, self.head_dim).transpose(1, 2)
         k = self.attention.k_proj(x_clean).view(batch_size, seq_len, self.num_heads, self.head_dim).transpose(1, 2)
