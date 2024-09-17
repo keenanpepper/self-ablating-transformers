@@ -18,7 +18,8 @@ class GPTNeoWithSelfAblationConfig:
         k_neurons=32,
         temperature_attention=0.1,
         temperature_neurons=0.1,
-        beta=0.9,
+        loss_coeff_base=1.0,
+        loss_coeff_ablated=0.1,
         reconstruction_coeff=0.1,
         top_k_epsilon=1e-12
     ):
@@ -39,7 +40,8 @@ class GPTNeoWithSelfAblationConfig:
         self.temperature_neurons = temperature_neurons
 
         # Loss calculation parameters
-        self.beta = beta
+        self.loss_coeff_base = loss_coeff_base
+        self.loss_coeff_ablated = loss_coeff_ablated
         self.reconstruction_coeff = reconstruction_coeff
 
     def __repr__(self):
@@ -49,7 +51,9 @@ class GPTNeoWithSelfAblationConfig:
                f"max_position_embeddings={self.max_position_embeddings}, " \
                f"window_size={self.window_size}, k_attention={self.k_attention}, " \
                f"k_neurons={self.k_neurons}, temperature_attention={self.temperature_attention}, " \
-               f"temperature_neurons={self.temperature_neurons}, beta={self.beta}, " \
+               f"temperature_neurons={self.temperature_neurons}, " \
+               f"loss_coeff_base={self.loss_coeff_base}, " \
+               f"loss_coeff_ablated={self.loss_coeff_ablated}, " \
                f"reconstruction_coeff={self.reconstruction_coeff})"
 
 class TrainingConfig:

@@ -17,7 +17,7 @@ class GPTNeoWithSelfAblation(nn.Module):
             ln_f = nn.LayerNorm(config.hidden_size, eps=1e-5)
         ))
         self.lm_head = nn.Linear(config.hidden_size, config.vocab_size, bias=False)
-        
+
         # Layer-wise ablation heads
         self.attention_ablation_heads = nn.ModuleList([
             nn.Linear(config.hidden_size, config.hidden_size)
@@ -73,13 +73,14 @@ class GPTNeoWithSelfAblation(nn.Module):
         if targets is not None:
             loss_clean = F.cross_entropy(logits_clean.view(-1, logits_clean.size(-1)), targets.view(-1))
             loss_ablated = F.cross_entropy(logits_ablated.view(-1, logits_ablated.size(-1)), targets.view(-1))
-            
+
             # Average the reconstruction loss over all layers
             avg_reconstruction_loss = total_reconstruction_loss / (self.config.num_layers + 1)
-            
+
             # Combine losses
-            beta = self.config.beta
-            loss = beta * loss_ablated + (1 - beta) * loss_clean + self.config.reconstruction_coeff * avg_reconstruction_loss
+            loss = sum([self.config.loss_coeff_base * loss_clean,
+                        self.config.loss_coeff_ablated * loss_ablated,
+                        self.config.reconstruction_coeff * avg_reconstruction_loss])
 
             outputs.update({
                 "loss": loss,
