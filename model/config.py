@@ -101,10 +101,12 @@ class WandBConfig:
         self.attention_layers = model_config.attention_layers
         self.loss_coeff_base = model_config.loss_coeff_base
         self.loss_coeff_ablated = model_config.loss_coeff_ablated
+        self.reconstruction_coeff = model_config.reconstruction_coeff
         self.k_attention = model_config.k_attention
         self.k_neurons = model_config.k_neurons
         self.temperature_attention = model_config.temperature_attention
         self.temperature_neurons = model_config.temperature_neurons
+        self.top_k_epsilon = model_config.top_k_epsilon
 
         # training config stuff
         self.train_file = training_config.train_file
@@ -138,4 +140,4 @@ class WandBConfig:
 
         self.reconstuction_loss = reconstruction_loss
         # add a description of the reconstruction loss used here if you use it
-        assert self.reconstuction_loss in [None]
+        assert self.reconstuction_loss in [None, "MSE"]

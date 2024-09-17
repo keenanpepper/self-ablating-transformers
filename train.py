@@ -3,7 +3,7 @@ import torch.nn as nn
 import torch.optim as optim
 from tqdm import tqdm
 from model.gpt_neo import GPTNeoWithSelfAblation
-from model.config import GPTNeoWithSelfAblationConfig, TrainingConfig
+from model.config import GPTNeoWithSelfAblationConfig, TrainingConfig, WandBConfig
 from utils.data_preparation import prepare_data
 import numpy as np
 import wandb
@@ -57,7 +57,17 @@ class LossEstimator:
         return out
 
 def train_gptneo(model, config):
-    wandb.init(project="gpt-neo-self-ablation", config=config.__dict__)
+
+    # PLEASE update these values for each real training run you do - it will really help us keep track
+    wandb_config = WandBConfig(model.config,
+                               config,
+                               dataset_name="TinyStories",
+                               ablation_mask_level="layer-by-layer",
+                               ablation_processing="soft-top-K-version-1",
+                               reconstruction_loss="MSE")
+
+    wandb.init(project="gpt-neo-self-ablation", config=wandb_config)
+
     train_batch_gen = BatchGenerator(config.train_file, config.block_size, config.batch_size, config.device)
     val_batch_gen = BatchGenerator(config.val_file, config.block_size, config.batch_size, config.device)
     loss_estimator = LossEstimator(model, train_batch_gen, val_batch_gen, config.eval_iters)
@@ -83,39 +93,38 @@ def train_gptneo(model, config):
         scheduler.step()
 
         # Evaluate on the validation set
+        # (note that this always uses just one batch
+        # and does not use LossEstimator - KGP)
         model.eval()
         with torch.no_grad():
             val_x, val_y = val_batch_gen.get_batch()
             val_outputs = model(val_x, targets=val_y)
 
-
-        wandb.log({
-            "iteration" : iteration,
-            "train_loss" : train_outputs['loss'].item(),
-            "val_loss" : val_outputs['loss'].item(),
-            "train_loss_clean" : train_outputs['loss_clean'].item(),
-            "val_loss_clean" : val_outputs['loss_clean'].item(),
-            "train_loss_ablated" : train_outputs['loss_ablated'].item(),
-            "val_loss_ablated" : val_outputs['loss_ablated'].item(),
-            "train_reconstruction_loss" : train_outputs['reconstruction_loss'].item(),
-            "val_reconstruction_loss" : val_outputs['reconstruction_loss'].item(),
-            "learning_rate" : optimizer.param_groups[0]['lr']
-
-        })
-
-        # Optional: print progress every log_interval iterations
+        # log progress every log_interval iterations
         if (iteration + 1) % config.log_interval == 0:
             print(f"Iteration {iteration}: train loss {train_outputs['loss'].item():.4f}, val loss {val_outputs['loss'].item():.4f}")
 
-        # save the best model
-        if val_outputs['loss'] < best_val_loss:
-            best_val_loss = val_outputs['loss']
-            torch.save(model.state_dict(), config.save_path)
-            print(f"New best model saved to {config.save_path}")
-            wandb.save(config.save_path) # Save the model to wandb
-            print(f"Model saved to wandb")
+            wandb.log({
+                "iteration" : iteration,
+                "train_loss" : train_outputs['loss'].item(),
+                "val_loss" : val_outputs['loss'].item(),
+                "train_loss_clean" : train_outputs['loss_clean'].item(),
+                "val_loss_clean" : val_outputs['loss_clean'].item(),
+                "train_loss_ablated" : train_outputs['loss_ablated'].item(),
+                "val_loss_ablated" : val_outputs['loss_ablated'].item(),
+                "train_reconstruction_loss" : train_outputs['reconstruction_loss'].item(),
+                "val_reconstruction_loss" : val_outputs['reconstruction_loss'].item(),
+                "learning_rate" : optimizer.param_groups[0]['lr']
+            })
 
-    
+            # save the best model
+            if val_outputs['loss'] < best_val_loss:
+                best_val_loss = val_outputs['loss']
+                torch.save(model.state_dict(), config.save_path)
+                print(f"New best model saved to {config.save_path}")
+                wandb.save(config.save_path) # Save the model to wandb
+                print(f"Model saved to wandb")
+
     print("Training completed!")
     wandb.finish() # Finish the wandb run
 
