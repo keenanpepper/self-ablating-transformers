@@ -95,12 +95,12 @@ def train_gptneo(model, config):
         # log progress every log_interval iterations
         if (iteration + 1) % config.log_interval == 0:
             stats = loss_estimator.estimate_loss()
-            print(f"Iteration {iteration}: train loss {stats['loss']['train']:.4f}, val loss {stats['loss']['val']:.4f}")
+            print(f"Iteration {iteration}: train loss {stats['train']['loss']:.4f}, val loss {stats['val']['loss']:.4f}")
             wandb.log(stats | {"iteration": iteration, "current_learning_rate": optimizer.param_groups[0]['lr']})
 
             # Save best model
-            if stats['loss']['val'] < best_val_loss:
-                best_val_loss = stats['loss']['val']
+            if stats['val']['loss'] < best_val_loss:
+                best_val_loss = stats['val']['loss']
                 torch.save(model.state_dict(), config.save_path)
                 print(f"New best model saved to {config.save_path}")
                 wandb.save(config.save_path) # Save the model to wandb
