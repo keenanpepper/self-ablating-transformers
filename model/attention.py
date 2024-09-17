@@ -21,6 +21,9 @@ class AttentionWithSelfAblation(nn.Module):
     def forward(self, x, x_clean, ablation_mask=None):
         batch_size, seq_len, _ = x.shape
 
+        assert x.shape == x_ablated.shape
+        assert x.device == x_ablated.device
+
         q = self.attention.q_proj(x).view(batch_size, seq_len, self.num_heads, self.head_dim).transpose(1, 2)
         k = self.attention.k_proj(x_clean).view(batch_size, seq_len, self.num_heads, self.head_dim).transpose(1, 2)
         v = self.attention.v_proj(x_clean).view(batch_size, seq_len, self.num_heads, self.head_dim).transpose(1, 2)
@@ -41,6 +44,7 @@ class AttentionWithSelfAblation(nn.Module):
         context = context.transpose(1, 2).contiguous().view(batch_size, seq_len, self.hidden_size)
 
         if ablation_mask is not None:
+            assert context.shape == ablation_mask.shape, f"context has shape {context.shape} while ablation mask has shape {ablation_mask.shape}"
             context = context * ablation_mask
 
         return self.attention.out_proj(context)
