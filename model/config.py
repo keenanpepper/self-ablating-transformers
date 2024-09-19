@@ -21,7 +21,10 @@ class GPTNeoWithSelfAblationConfig:
         loss_coeff_base=1.0,
         loss_coeff_ablated=0.1,
         reconstruction_coeff=0.1,
-        top_k_epsilon=1e-12
+        top_k_epsilon=1e-12,
+        has_layer_by_layer_ablation_mask=True,
+        has_overall_ablation_mask=False,
+        reconstruction_loss_type="MSE",
     ):
         self.top_k_epsilon = top_k_epsilon
         self.vocab_size = vocab_size
@@ -38,6 +41,9 @@ class GPTNeoWithSelfAblationConfig:
         self.k_neurons = k_neurons
         self.temperature_attention = temperature_attention
         self.temperature_neurons = temperature_neurons
+        self.has_layer_by_layer_ablation_mask = has_layer_by_layer_ablation_mask
+        self.has_overall_ablation_mask = has_overall_ablation_mask
+        self.reconstruction_loss_type = reconstruction_loss_type
 
         # Loss calculation parameters
         self.loss_coeff_base = loss_coeff_base
@@ -45,16 +51,8 @@ class GPTNeoWithSelfAblationConfig:
         self.reconstruction_coeff = reconstruction_coeff
 
     def __repr__(self):
-        return f"GPTNeoWithSelfAblationConfig(vocab_size={self.vocab_size}, " \
-               f"hidden_size={self.hidden_size}, mlp_hidden_size={self.mlp_hidden_size}, " \
-               f"num_layers={self.num_layers}, num_heads={self.num_heads}, " \
-               f"max_position_embeddings={self.max_position_embeddings}, " \
-               f"window_size={self.window_size}, k_attention={self.k_attention}, " \
-               f"k_neurons={self.k_neurons}, temperature_attention={self.temperature_attention}, " \
-               f"temperature_neurons={self.temperature_neurons}, " \
-               f"loss_coeff_base={self.loss_coeff_base}, " \
-               f"loss_coeff_ablated={self.loss_coeff_ablated}, " \
-               f"reconstruction_coeff={self.reconstruction_coeff})"
+        attributes = [f"{key}={repr(value)}" for key, value in vars(self).items()]
+        return f"{self.__class__.__name__}({', '.join(attributes)})"
 
 class TrainingConfig:
     """
@@ -82,6 +80,11 @@ class TrainingConfig:
         self.log_interval = log_interval
         self.lr_schedule = lr_schedule
 
+    def __repr__(self):
+        attributes = [f"{key}={repr(value)}" for key, value in vars(self).items()]
+        return f"{self.__class__.__name__}({', '.join(attributes)})"
+
+
 class WandBConfig:
     """
     All training run parameters that are saved to WandB.
@@ -89,7 +92,7 @@ class WandBConfig:
     in full and reproducible.
     """
     def __init__(self, model_config, training_config, dataset_name,
-                 ablation_mask_level, ablation_processing, reconstruction_loss):
+                 ablation_processing, reconstruction_loss):
         # model config stuff
         self.vocab_size = model_config.vocab_size
         self.hidden_size = model_config.hidden_size
@@ -107,6 +110,12 @@ class WandBConfig:
         self.temperature_attention = model_config.temperature_attention
         self.temperature_neurons = model_config.temperature_neurons
         self.top_k_epsilon = model_config.top_k_epsilon
+        self.ablation_mask_level = (
+            "both" if model_config.has_layer_by_layer_ablation_mask and model_config.has_overall_ablation_mask
+            else ("layer-by-layer" if model_config.has_layer_by_layer_ablation_mask
+                  else ("overall" if model_config.has_overall_ablation_mask
+                        else None)))
+        self.reconstuction_loss = model_config.reconstruction_loss_type
 
         # training config stuff
         self.train_file = training_config.train_file
@@ -129,15 +138,11 @@ class WandBConfig:
         # add more here if you use a new dataset
         assert self.dataset_name in ["TinyStories"]
 
-        self.ablation_mask_level = ablation_mask_level
-        # these seem like the only two possibilities we'd use
-        assert self.ablation_mask_level in ["layer-by-layer", "overall"]
-
         self.ablation_processing = ablation_processing
         # add more here if you change the strategy to something other than soft-top-K
         # the first one we used could be called like "direct-with-density-loss" or something
         assert self.ablation_processing in ["soft-top-K-version-1"]
 
-        self.reconstuction_loss = reconstruction_loss
-        # add a description of the reconstruction loss used here if you use it
-        assert self.reconstuction_loss in [None, "MSE"]
+    def __repr__(self):
+        attributes = [f"{key}={repr(value)}" for key, value in vars(self).items()]
+        return f"{self.__class__.__name__}({', '.join(attributes)})"

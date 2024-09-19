@@ -1,14 +1,13 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-import math
-from .config import GPTNeoWithSelfAblationConfig
 from .block import GPTNeoBlockWithSelfAblation
 
 
 class GPTNeoWithSelfAblation(nn.Module):
     def __init__(self, config):
         super().__init__()
+        assert config.has_layer_by_layer_ablation_mask or config.has_overall_ablation_mask
         self.config = config
         self.transformer = nn.ModuleDict(dict(
             wte = nn.Embedding(config.vocab_size, config.hidden_size),
@@ -18,22 +17,39 @@ class GPTNeoWithSelfAblation(nn.Module):
         ))
         self.lm_head = nn.Linear(config.hidden_size, config.vocab_size, bias=False)
 
-        # Layer-wise ablation heads
-        self.attention_ablation_heads = nn.ModuleList([
-            nn.Linear(config.hidden_size, config.hidden_size)
-            for _ in range(config.num_layers)
-        ])
-        self.neuron_ablation_heads = nn.ModuleList([
-            nn.Linear(config.hidden_size, config.mlp_hidden_size)
-            for _ in range(config.num_layers)
-        ])
+        if config.has_overall_ablation_mask:
+            attn_ablation_size = config.num_layers * config.hidden_size
+            neuron_ablation_size = config.num_layers * config.mlp_hidden_size
+            self.attention_ablations_head = nn.Linear(config.hidden_size, attn_ablation_size)
+            self.neuron_ablations_head = nn.Linear(config.hidden_size, neuron_ablation_size)
 
         # Tie weights
         self.transformer.wte.weight = self.lm_head.weight
 
-    def forward(self, input_ids, targets=None):
+    def forward(self, input_ids, targets=None, is_preliminary_pass=False,
+                overall_attention_ablation_scores=None,
+                overall_neuron_ablation_scores=None):
+        """
+        forward pass thru the model
+
+        input_ids: input token IDs to the model. shape (batch_size, block_length)
+
+        targets: the actual next tokens, i.e. text[1:n+1] if the input tokens are text[0:n]
+        (if supplied they will be used to calculate cross-entropy loss)
+        shape: (batch_size, block_length)
+
+        is_preliminary_pass: if True we will do an initial, clean-only forward pass thru the model
+        in order to get the overall ablation mask.
+        always false if config.has_overall_ablation_mask==False
+
+        overall_attention_ablation_scores, overall_neuron_ablation_scores:
+        if using an overall ablation mask this should be the result
+        of the preliminary pass (pre-topK relevance scores), otherwise None
+        shapes: (batch_size, block_length, num_layers, [either hidden_size or mlp_hidden_size])
+
+        """
         device = input_ids.device
-        b, t = input_ids.shape
+        _, t = input_ids.shape
         pos = torch.arange(0, t, dtype=torch.long, device=device).unsqueeze(0)
 
         tok_emb = self.transformer.wte(input_ids)
@@ -43,27 +59,46 @@ class GPTNeoWithSelfAblation(nn.Module):
 
         total_reconstruction_loss = 0
 
-        for block in self.transformer.h:
+        for i, block in enumerate(self.transformer.h):
 
-            x_ablated, x_clean = block(x_ablated, x_clean)
+            block_attn_scores = None
+            block_neuron_scores = None
+            if self.config.has_overall_ablation_mask and not is_preliminary_pass:
+                block_attn_scores = overall_attention_ablation_scores[:,:,i,:]
+                block_neuron_scores = overall_neuron_ablation_scores[:,:,i,:]
 
-            # Compute reconstruction loss for this layer with normalization
-            x_clean_norm = F.normalize(x_clean, p=2, dim=-1)
-            x_ablated_norm = F.normalize(x_ablated, p=2, dim=-1)
-            layer_reconstruction_loss = F.mse_loss(x_clean_norm, x_ablated_norm)
-            total_reconstruction_loss += layer_reconstruction_loss
+            x_ablated, x_clean = block(x_ablated,
+                                       x_clean,
+                                       is_preliminary_pass=is_preliminary_pass,
+                                       overall_attention_ablation_scores=block_attn_scores,
+                                       overall_neuron_ablation_scores=block_neuron_scores)
+
+            if not is_preliminary_pass:
+                if self.config.reconstruction_loss_type == "MSE":
+                    # Compute reconstruction loss for this layer with normalization
+                    x_clean_norm = F.normalize(x_clean, p=2, dim=-1)
+                    x_ablated_norm = F.normalize(x_ablated, p=2, dim=-1)
+                    layer_reconstruction_loss = F.mse_loss(x_clean_norm, x_ablated_norm)
+                    total_reconstruction_loss += layer_reconstruction_loss
+                else:
+                    assert self.config.reconstruction_loss_type == None, "unknown reconstruction loss type"
 
         x_clean = self.transformer.ln_f(x_clean)
-        x_ablated = self.transformer.ln_f(x_ablated)
 
-        # Final layer reconstruction loss
-        x_clean_norm = F.normalize(x_clean, p=2, dim=-1)
-        x_ablated_norm = F.normalize(x_ablated, p=2, dim=-1)
-        final_reconstruction_loss = F.mse_loss(x_clean_norm, x_ablated_norm)
-        total_reconstruction_loss += final_reconstruction_loss
+        if not is_preliminary_pass:
+            x_ablated = self.transformer.ln_f(x_ablated)
 
+            if self.config.reconstruction_loss_type == "MSE":
+                # Final layer reconstruction loss
+                x_clean_norm = F.normalize(x_clean, p=2, dim=-1)
+                x_ablated_norm = F.normalize(x_ablated, p=2, dim=-1)
+                final_reconstruction_loss = F.mse_loss(x_clean_norm, x_ablated_norm)
+                total_reconstruction_loss += final_reconstruction_loss
+            else:
+                assert self.config.reconstruction_loss_type == None, "unknown reconstruction loss type"
+
+        logits_ablated = None if is_preliminary_pass else self.lm_head(x_ablated)
         logits_clean = self.lm_head(x_clean)
-        logits_ablated = self.lm_head(x_ablated)
 
         outputs = {
             "logits_clean": logits_clean,
@@ -72,7 +107,8 @@ class GPTNeoWithSelfAblation(nn.Module):
 
         if targets is not None:
             loss_clean = F.cross_entropy(logits_clean.view(-1, logits_clean.size(-1)), targets.view(-1))
-            loss_ablated = F.cross_entropy(logits_ablated.view(-1, logits_ablated.size(-1)), targets.view(-1))
+            if not is_preliminary_pass:
+                loss_ablated = F.cross_entropy(logits_ablated.view(-1, logits_ablated.size(-1)), targets.view(-1))
 
             # Average the reconstruction loss over all layers
             avg_reconstruction_loss = total_reconstruction_loss / (self.config.num_layers + 1)
@@ -87,6 +123,17 @@ class GPTNeoWithSelfAblation(nn.Module):
                 "loss_clean": loss_clean,
                 "loss_ablated": loss_ablated,
                 "reconstruction_loss": avg_reconstruction_loss,
+            })
+
+        if is_preliminary_pass:
+            attention_ablation_scores = self.attention_ablations_head(x_clean)
+            the_shape = attention_ablation_scores.shape
+            attention_ablation_scores = attention_ablation_scores.reshape(*the_shape[:-1], self.config.num_layers, self.config.hidden_size)
+            neuron_ablation_scores = self.neuron_ablations_head(x_clean)
+            neuron_ablation_scores = neuron_ablation_scores.reshape(*the_shape[:-1], self.config.num_layers, self.config.mlp_hidden_size)
+            outputs.update({
+                "attention_ablation_scores": attention_ablation_scores,
+                "neuron_ablation_scores": neuron_ablation_scores,
             })
 
         return outputs

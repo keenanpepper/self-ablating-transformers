@@ -62,7 +62,6 @@ def train_gptneo(model, config):
     wandb_config = WandBConfig(model.config,
                                config,
                                dataset_name="TinyStories",
-                               ablation_mask_level="layer-by-layer",
                                ablation_processing="soft-top-K-version-1",
                                reconstruction_loss="MSE")
 
