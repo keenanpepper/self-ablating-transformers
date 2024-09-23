@@ -17,6 +17,7 @@ class GPTNeoWithSelfAblation(nn.Module):
         ))
         self.lm_head = nn.Linear(config.hidden_size, config.vocab_size, bias=False)
 
+        # This is an awkward configuration since the two ablation types can't be used together
         if config.has_overall_ablation_mask:
             attn_ablation_size = config.num_layers * config.hidden_size
             neuron_ablation_size = config.num_layers * config.mlp_hidden_size
