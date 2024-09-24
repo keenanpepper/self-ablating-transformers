@@ -17,7 +17,9 @@ class GPTNeoWithSelfAblation(nn.Module):
         ))
         self.lm_head = nn.Linear(config.hidden_size, config.vocab_size, bias=False)
 
-        # This is an awkward configuration since the two ablation types can't be used together
+        # Note that in theory the two ablations types (overall and layer-by-layer
+        # CAN be used together (the relevance scores are added up before the soft-top-K.
+        # This should work but as of 2024-09-24 no training run has been done with it.
         if config.has_overall_ablation_mask:
             attn_ablation_size = config.num_layers * config.hidden_size
             neuron_ablation_size = config.num_layers * config.mlp_hidden_size
