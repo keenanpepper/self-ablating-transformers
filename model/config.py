@@ -1,5 +1,7 @@
 import torch
 
+from transformer_lens import HookedTransformerConfig
+
 class GPTNeoWithSelfAblationConfig:
     """
     All the hyperparameters of the model itself
@@ -49,10 +51,27 @@ class GPTNeoWithSelfAblationConfig:
         self.loss_coeff_base = loss_coeff_base
         self.loss_coeff_ablated = loss_coeff_ablated
         self.reconstruction_coeff = reconstruction_coeff
+        
+        # Transformer Lens specific parameters
+        self.hooked_transformer_config = HookedAblatedTransformerConfing(
+            n_layers=num_layers,
+            d_model=hidden_size,
+            n_ctx=max_position_embeddings,
+            d_head=hidden_size // num_heads,
+            act_fn="gelu",
+        )
 
     def __repr__(self):
         attributes = [f"{key}={repr(value)}" for key, value in vars(self).items()]
         return f"{self.__class__.__name__}({', '.join(attributes)})"
+    
+class HookedAblatedTransformerConfing(HookedTransformerConfig):
+    
+    def __init__(self, n_layers, d_model, n_ctx, d_head, act_fn="gelu"):
+        super().__init__(n_layers, d_model, n_ctx, d_head, act_fn=act_fn)
+        
+        # Add specific parameters here
+        
 
 class TrainingConfig:
     """

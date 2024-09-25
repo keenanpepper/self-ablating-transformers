@@ -4,8 +4,10 @@ from .attention import AttentionWithSelfAblation
 from .mlp import MLPWithSelfAblation
 from .soft_top_k import soft_top_k
 
+from transformer_lens.hook_points import HookPoint, HookedRootModule
 
-class GPTNeoBlockWithSelfAblation(nn.Module):
+
+class GPTNeoBlockWithSelfAblation(HookedRootModule):
     def __init__(self, config, layer_id):
         super().__init__()
         self.config = config
@@ -14,10 +16,16 @@ class GPTNeoBlockWithSelfAblation(nn.Module):
         self.ln_2 = nn.LayerNorm(config.hidden_size, eps=1e-5)
         self.mlp = MLPWithSelfAblation(config)
         
+        self.attn_hook = HookPoint()
+        self.mlp_hook = HookPoint()
+        
         if self.config.has_layer_by_layer_ablation_mask:
             # Ablation heads
             self.attention_ablation_head = nn.Linear(config.hidden_size, config.hidden_size)
             self.neuron_ablation_head = nn.Linear(config.hidden_size, config.mlp_hidden_size)
+            
+            self.attn_ablation_hook = HookPoint()
+            self.neuron_ablation_hook = HookPoint()
 
     def forward(self, x_ablated, x_clean, is_preliminary_pass,
                 overall_attention_ablation_scores,
@@ -41,14 +49,21 @@ class GPTNeoBlockWithSelfAblation(nn.Module):
             # Generate ablation masks before passing through layers
             attn_ablation_scores = attn_ablation_scores + self.attention_ablation_head(x_clean)
             neuron_ablation_scores = neuron_ablation_scores + self.neuron_ablation_head(x_clean)
+            
+            # Get layer by layer ablation masks
+            attn_ablation = self.attn_ablation_hook(attn_ablation_scores)
+            neuron_ablation = self.neuron_ablation_hook(neuron_ablation_scores)
 
         attn_ablation = soft_top_k(attn_ablation_scores, self.config.k_attention, self.config.temperature_attention, eps=self.config.top_k_epsilon)
         neuron_ablation = soft_top_k(neuron_ablation_scores, self.config.k_neurons, self.config.temperature_neurons, eps=self.config.top_k_epsilon)
 
         # Process x_clean
         attn_output_clean = self.attn(self.ln_1(x_clean), self.ln_1(x_clean))
+        attn_output_clean = self.attn_hook(attn_output_clean)
+        
         x_clean = x_clean + attn_output_clean
         x_clean = x_clean + self.mlp(self.ln_2(x_clean))
+        x_clean = self.mlp_hook(x_clean)
 
         if not is_preliminary_pass:
             # Process x_ablated with ablations

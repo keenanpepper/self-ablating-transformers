@@ -3,8 +3,9 @@ import torch.nn as nn
 import torch.nn.functional as F
 from .block import GPTNeoBlockWithSelfAblation
 
+from transformer_lens.hook_points import HookPoint, HookedRootModule
 
-class GPTNeoWithSelfAblation(nn.Module):
+class GPTNeoWithSelfAblation(HookedRootModule):
     def __init__(self, config):
         super().__init__()
         assert config.has_layer_by_layer_ablation_mask or config.has_overall_ablation_mask
@@ -25,9 +26,15 @@ class GPTNeoWithSelfAblation(nn.Module):
             neuron_ablation_size = config.num_layers * config.mlp_hidden_size
             self.attention_ablations_head = nn.Linear(config.hidden_size, attn_ablation_size)
             self.neuron_ablations_head = nn.Linear(config.hidden_size, neuron_ablation_size)
+            
+            self.attn_ablation_hook = HookPoint()
+            self.neuron_ablation_hook = HookPoint()
 
         # Tie weights
         self.transformer.wte.weight = self.lm_head.weight
+        
+        # Creates hook dictionaries for transformer lens
+        self.setup()
 
     def forward(self, input_ids, targets=None, is_preliminary_pass=False,
                 overall_attention_ablation_scores=None,
@@ -145,10 +152,16 @@ class GPTNeoWithSelfAblation(nn.Module):
             })
 
         if is_preliminary_pass:
+            
             attention_ablation_scores = self.attention_ablations_head(x_clean)
+            attention_ablation_scores = self.attn_ablation_hook(attention_ablation_scores)
+            
             the_shape = attention_ablation_scores.shape
             attention_ablation_scores = attention_ablation_scores.reshape(*the_shape[:-1], self.config.num_layers, self.config.hidden_size)
+            
             neuron_ablation_scores = self.neuron_ablations_head(x_clean)
+            neuron_ablation_scores = self.neuron_ablation_hook(neuron_ablation_scores)
+            
             neuron_ablation_scores = neuron_ablation_scores.reshape(*the_shape[:-1], self.config.num_layers, self.config.mlp_hidden_size)
             outputs.update({
                 "attention_ablation_scores": attention_ablation_scores,
