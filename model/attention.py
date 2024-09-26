@@ -16,6 +16,8 @@ class AttentionWithSelfAblation(HookedRootModule):
         self.hook_k = HookPoint()
         self.hook_v = HookPoint()
         self.hook_q = HookPoint()
+        self.attn_hook = HookPoint()
+        self.context = HookPoint()
         self.ablated_context = HookPoint()
 
         self.attention = nn.ModuleDict(dict(
@@ -51,9 +53,12 @@ class AttentionWithSelfAblation(HookedRootModule):
             scores = scores.masked_fill(causal_mask.unsqueeze(0).unsqueeze(0), float('-inf'))
 
         attn = F.softmax(scores, dim=-1)
+        attn = self.attn_hook(attn)
         context = torch.matmul(attn, v)
 
         context = context.transpose(1, 2).contiguous().view(batch_size, seq_len, self.hidden_size)
+        
+        context = self.context(context)
 
         if ablation_mask is not None:
             assert context.shape == ablation_mask.shape, f"context has shape {context.shape} while ablation mask has shape {ablation_mask.shape}"
