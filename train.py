@@ -6,8 +6,11 @@ from model.gpt_neo import GPTNeoWithSelfAblation
 from model.config import GPTNeoWithSelfAblationConfig, TrainingConfig, WandBConfig
 from utils.data_preparation import prepare_data
 from utils.training import BatchGenerator, LossEstimator
+from utils.parser import return_parser
+
 import numpy as np
 import wandb
+
 from dotenv import load_dotenv
 
 def train_gptneo(model, config):
@@ -68,11 +71,14 @@ if __name__ == "__main__":
     print("Loading environment variables")
     load_dotenv()
     
+    # Gets arguments from command line
+    parser = return_parser()
+    args = parser.parse_args()
+    
     # Set up configuration
-    model_config = GPTNeoWithSelfAblationConfig(hidden_size=128) # Should we just change the default size?
+    model_config = GPTNeoWithSelfAblationConfig(hidden_size=128)
         
-    training_config = TrainingConfig()
-    training_config.batch_size = 32
+    training_config = TrainingConfig(batch_size=32)
 
     # Initialize model
     model = GPTNeoWithSelfAblation(model_config)
