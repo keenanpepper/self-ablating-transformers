@@ -84,7 +84,7 @@ if __name__ == "__main__":
     # Set up configuration
     model_config = GPTNeoWithSelfAblationConfig(hidden_size=128, **args)
         
-    training_config = TrainingConfig(batch_size=32, save_path="f{model_name}.pt")
+    training_config = TrainingConfig(batch_size=32, save_path=f"model_weights/{model_name}.pt")
 
     # Initialize model
     model = GPTNeoWithSelfAblation(model_config)
