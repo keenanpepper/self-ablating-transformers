@@ -13,12 +13,12 @@ class AttentionWithSelfAblation(HookedRootModule):
         self.head_dim = config.hidden_size // config.num_heads
         self.config = config
         
-        self.hook_k = HookPoint()
-        self.hook_v = HookPoint()
-        self.hook_q = HookPoint()
+        self.k_hook = HookPoint()
+        self.v_hook = HookPoint()
+        self.q_hook = HookPoint()
         self.attn_hook = HookPoint()
-        self.context = HookPoint()
-        self.ablated_context = HookPoint()
+        self.context_hook = HookPoint()
+        self.ablated_context_hook = HookPoint()
 
         self.attention = nn.ModuleDict(dict(
             k_proj = nn.Linear(config.hidden_size, config.hidden_size, bias=False),
@@ -38,9 +38,9 @@ class AttentionWithSelfAblation(HookedRootModule):
         v = self.attention.v_proj(x_clean).view(batch_size, seq_len, self.num_heads, self.head_dim).transpose(1, 2)
         
         # Apply hooks
-        q = self.hook_q(q)
-        k = self.hook_k(k)
-        v = self.hook_v(v)
+        q = self.q_hook(q)
+        k = self.k_hook(k)
+        v = self.v_hook(v)
 
         scores = torch.matmul(q, k.transpose(-1, -2))
 
@@ -58,12 +58,12 @@ class AttentionWithSelfAblation(HookedRootModule):
 
         context = context.transpose(1, 2).contiguous().view(batch_size, seq_len, self.hidden_size)
         
-        context = self.context(context)
+        context = self.context_hook(context)
 
         if ablation_mask is not None:
             assert context.shape == ablation_mask.shape, f"context has shape {context.shape} while ablation mask has shape {ablation_mask.shape}"
             context = context * ablation_mask
         
-        self.ablated_context(context)
+        self.ablated_context_hook(context)
 
         return self.attention.out_proj(context)

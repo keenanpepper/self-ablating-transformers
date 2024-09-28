@@ -14,20 +14,20 @@ class MLPWithSelfAblation(HookedRootModule):
         self.c_proj = nn.Linear(config.mlp_hidden_size, config.hidden_size)
         self.act = NewGELUActivation()
         
-        self.hook_fc_activation = HookPoint()
-        self.hook_ablated_fc_activation = HookPoint()
+        self.fc_activation_hook = HookPoint()
+        self.ablated_fc_activation_hook = HookPoint()
 
     def forward(self, x, ablation_mask=None):
         hidden_states = self.c_fc(x)
         hidden_states = self.act(hidden_states)
         
         # Hook after activation and fully connected layer
-        hidden_states = self.hook_fc_activation(hidden_states)
+        hidden_states = self.fc_activation_hook(hidden_states)
 
         if ablation_mask is not None:
             hidden_states = hidden_states * ablation_mask
         
         # Hook after ablation mask
-        hidden_states = self.hook_ablated_fc_activation(hidden_states)
+        hidden_states = self.ablated_fc_activation_hook(hidden_states)
 
         return self.c_proj(hidden_states)
