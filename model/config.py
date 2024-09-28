@@ -46,7 +46,7 @@ class GPTNeoWithSelfAblationConfig:
         self.has_layer_by_layer_ablation_mask = has_layer_by_layer_ablation_mask
         self.has_overall_ablation_mask = has_overall_ablation_mask
         self.reconstruction_loss_type = reconstruction_loss_type
-
+        
         # Loss calculation parameters
         self.loss_coeff_base = loss_coeff_base
         self.loss_coeff_ablated = loss_coeff_ablated
