@@ -13,7 +13,7 @@ import wandb
 
 from dotenv import load_dotenv
 
-def train_gptneo(model, config):
+def train_gptneo(model, config, model_name=None):
 
     # PLEASE update these values for each real training run you do - it will really help us keep track
     wandb_config = WandBConfig(model.config,
@@ -23,7 +23,7 @@ def train_gptneo(model, config):
                                top_k_level="layer-by-layer",
                                per_layer_ablation_position="pre")
 
-    wandb.init(project="gpt-neo-self-ablation", config=wandb_config)
+    wandb.init(project="gpt-neo-self-ablation", config=wandb_config, name=model_name)
 
     train_batch_gen = BatchGenerator(config.train_file, config.block_size, config.batch_size, config.device)
     val_batch_gen = BatchGenerator(config.val_file, config.block_size, config.batch_size, config.device)
@@ -75,10 +75,16 @@ if __name__ == "__main__":
     parser = return_parser()
     args = parser.parse_args()
     
+    model_name = args.model_name
+    
+    # Creates a dictionary with the arguments except model_name
+    args = vars(args)
+    del args['model_name']
+    
     # Set up configuration
-    model_config = GPTNeoWithSelfAblationConfig(hidden_size=128)
+    model_config = GPTNeoWithSelfAblationConfig(hidden_size=128, **args)
         
-    training_config = TrainingConfig(batch_size=32)
+    training_config = TrainingConfig(batch_size=32, save_path="f{model_name}.pt")
 
     # Initialize model
     model = GPTNeoWithSelfAblation(model_config)
@@ -90,4 +96,4 @@ if __name__ == "__main__":
 
     # Train model
     print("Beginning training")
-    train_gptneo(model, training_config)
+    train_gptneo(model, training_config, model_name)

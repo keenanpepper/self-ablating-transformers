@@ -9,7 +9,7 @@ class GPTNeoWithSelfAblationConfig:
     def __init__(
         self,
         vocab_size=50257,
-        hidden_size=64,
+        hidden_size=128,
         mlp_hidden_size=None,
         num_layers=8,
         num_heads=16,
@@ -78,8 +78,8 @@ class TrainingConfig:
     Training hyperparameters and setup
     """
     def __init__(self, train_file = "train.bin", val_file = "validation.bin",
-                 block_size = 256, device = None, num_batches = 120000,
-                 batch_size = 64, learning_rate = 4e-3, weight_decay = 0.0,
+                 block_size = 256, device = None, num_batches = 200000,
+                 batch_size = 64, learning_rate = 1e-3, weight_decay = 0.0,
                  max_grad_norm = 1.0, save_path = "best_model.pt",
                  eval_iters = 100, log_interval = 1000,
                  lr_schedule = "CosineAnnealing"):
