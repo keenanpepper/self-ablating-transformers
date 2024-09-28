@@ -127,8 +127,8 @@ class GPTNeoWithSelfAblation(HookedRootModule):
         outputs = {
             "logits_clean": logits_clean,
             "logits_ablated": logits_ablated,
-            "attention_ablations": torch.stack(attn_ablations_list, dim=-2),
-            "neuron_ablations": torch.stack(neuron_ablations_list, dim=-2)
+            "attention_ablations": None if is_preliminary_pass else torch.stack(attn_ablations_list, dim=-2),
+            "neuron_ablations": None if is_preliminary_pass else torch.stack(neuron_ablations_list, dim=-2)
         }
 
         if targets is not None and not is_preliminary_pass:
