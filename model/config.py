@@ -11,7 +11,7 @@ class GPTNeoWithSelfAblationConfig:
         vocab_size=50257,
         hidden_size=128,
         mlp_hidden_size=None,
-        num_layers=8,
+        n_layers=8,
         num_heads=16,
         max_position_embeddings=2048,
         window_size=256,
@@ -32,11 +32,11 @@ class GPTNeoWithSelfAblationConfig:
         self.vocab_size = vocab_size
         self.hidden_size = hidden_size
         self.mlp_hidden_size = 4 * self.hidden_size if mlp_hidden_size is None else mlp_hidden_size
-        self.num_layers = num_layers
+        self.n_layers = n_layers
         self.num_heads = num_heads
         self.max_position_embeddings = max_position_embeddings
         self.window_size = window_size
-        self.attention_layers = ["global"] * num_layers if attention_layers is None else attention_layers
+        self.attention_layers = ["global"] * n_layers if attention_layers is None else attention_layers
 
         # Ablation-specific parameters
         self.k_attention = k_attention
@@ -53,8 +53,8 @@ class GPTNeoWithSelfAblationConfig:
         self.reconstruction_coeff = reconstruction_coeff
         
         # Transformer Lens specific parameters
-        self.hooked_transformer_config = HookedAblatedTransformerConfing(
-            n_layers=num_layers,
+        self.hooked_transformer_config = HookedAblatedTransformerConfig(
+            n_layers=n_layers,
             d_model=hidden_size,
             n_ctx=max_position_embeddings,
             d_head=hidden_size // num_heads,
@@ -65,7 +65,7 @@ class GPTNeoWithSelfAblationConfig:
         attributes = [f"{key}={repr(value)}" for key, value in vars(self).items()]
         return f"{self.__class__.__name__}({', '.join(attributes)})"
     
-class HookedAblatedTransformerConfing(HookedTransformerConfig):
+class HookedAblatedTransformerConfig(HookedTransformerConfig):
     
     def __init__(self, n_layers, d_model, n_ctx, d_head, act_fn="gelu"):
         super().__init__(n_layers, d_model, n_ctx, d_head, act_fn=act_fn)
