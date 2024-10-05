@@ -4,34 +4,35 @@ import torch.nn.functional as F
 from .block import GPTNeoBlockWithSelfAblation
 
 from transformer_lens.hook_points import HookPoint, HookedRootModule
+from transformer_lens.ActivationCache import ActivationCache
 
 class GPTNeoWithSelfAblation(HookedRootModule):
-    def __init__(self, config):
+    def __init__(self, cfg):
         super().__init__()
-        assert config.has_layer_by_layer_ablation_mask or config.has_overall_ablation_mask
-        self.config = config
-        self.transformer = nn.ModuleDict(dict(
-            wte = nn.Embedding(config.vocab_size, config.hidden_size),
-            wpe = nn.Embedding(config.max_position_embeddings, config.hidden_size),
-            h = nn.ModuleList([GPTNeoBlockWithSelfAblation(config, i) for i in range(config.num_layers)]),
-            ln_f = nn.LayerNorm(config.hidden_size, eps=1e-5)
-        ))
-        self.lm_head = nn.Linear(config.hidden_size, config.vocab_size, bias=False)
+        assert cfg.has_layer_by_layer_ablation_mask or cfg.has_overall_ablation_mask
+        self.cfg = cfg
+        
+        self.wte = nn.Embedding(cfg.vocab_size, cfg.hidden_size)
+        self.wpe = nn.Embedding(cfg.max_position_embeddings, cfg.hidden_size)
+        self.blocks = nn.ModuleList([GPTNeoBlockWithSelfAblation(cfg, i) for i in range(cfg.n_layers)])
+        self.ln_f = nn.LayerNorm(cfg.hidden_size, eps=1e-5)
+        
+        self.lm_head = nn.Linear(cfg.hidden_size, cfg.vocab_size, bias=False)
 
         # Note that in theory the two ablations types (overall and layer-by-layer
         # CAN be used together (the relevance scores are added up before the soft-top-K.
         # This should work but as of 2024-09-24 no training run has been done with it.
-        if config.has_overall_ablation_mask:
-            attn_ablation_size = config.num_layers * config.hidden_size
-            neuron_ablation_size = config.num_layers * config.mlp_hidden_size
-            self.attention_ablations_head = nn.Linear(config.hidden_size, attn_ablation_size)
-            self.neuron_ablations_head = nn.Linear(config.hidden_size, neuron_ablation_size)
+        if cfg.has_overall_ablation_mask:
+            attn_ablation_size = cfg.n_layers * cfg.hidden_size
+            neuron_ablation_size = cfg.n_layers * cfg.mlp_hidden_size
+            self.attention_ablations_head = nn.Linear(cfg.hidden_size, attn_ablation_size)
+            self.neuron_ablations_head = nn.Linear(cfg.hidden_size, neuron_ablation_size)
             
             self.attn_ablation_hook = HookPoint()
             self.neuron_ablation_hook = HookPoint()
 
         # Tie weights
-        self.transformer.wte.weight = self.lm_head.weight
+        self.wte.weight = self.lm_head.weight
         
         # Creates hook dictionaries for transformer lens
         self.setup()
@@ -58,7 +59,7 @@ class GPTNeoWithSelfAblation(HookedRootModule):
         shapes: (batch_size, block_length, num_layers, [either hidden_size or mlp_hidden_size])
 
         """
-        if self.config.has_overall_ablation_mask and not is_preliminary_pass:
+        if self.cfg.has_overall_ablation_mask and not is_preliminary_pass:
             assert overall_attention_ablation_scores == None, "shouldn't have overall ablation scores yet"
             assert overall_neuron_ablation_scores == None, "shouldn't have overall ablation scores yet"
             prelim_output = self.forward(input_ids, targets, is_preliminary_pass=True)
@@ -69,8 +70,8 @@ class GPTNeoWithSelfAblation(HookedRootModule):
         _, t = input_ids.shape
         pos = torch.arange(0, t, dtype=torch.long, device=device).unsqueeze(0)
 
-        tok_emb = self.transformer.wte(input_ids)
-        pos_emb = self.transformer.wpe(pos)
+        tok_emb = self.wte(input_ids)
+        pos_emb = self.wpe(pos)
 
         x_clean = x_ablated = tok_emb + pos_emb
 
@@ -79,11 +80,11 @@ class GPTNeoWithSelfAblation(HookedRootModule):
         attn_ablations_list = []
         neuron_ablations_list = []
 
-        for i, block in enumerate(self.transformer.h):
+        for i, block in enumerate(self.blocks):
 
             block_attn_scores = None
             block_neuron_scores = None
-            if self.config.has_overall_ablation_mask and not is_preliminary_pass:
+            if self.cfg.has_overall_ablation_mask and not is_preliminary_pass:
                 block_attn_scores = overall_attention_ablation_scores[:,:,i,:]
                 block_neuron_scores = overall_neuron_ablation_scores[:,:,i,:]
 
@@ -98,28 +99,28 @@ class GPTNeoWithSelfAblation(HookedRootModule):
             neuron_ablations_list.append(block_outputs["neuron_ablations"])
 
             if not is_preliminary_pass:
-                if self.config.reconstruction_loss_type == "MSE":
+                if self.cfg.reconstruction_loss_type == "MSE":
                     # Compute reconstruction loss for this layer with normalization
                     x_clean_norm = F.normalize(x_clean, p=2, dim=-1)
                     x_ablated_norm = F.normalize(x_ablated, p=2, dim=-1)
                     layer_reconstruction_loss = F.mse_loss(x_clean_norm, x_ablated_norm)
                     total_reconstruction_loss += layer_reconstruction_loss
                 else:
-                    assert self.config.reconstruction_loss_type == None, "unknown reconstruction loss type"
+                    assert self.cfg.reconstruction_loss_type == None, "unknown reconstruction loss type"
 
-        x_clean = self.transformer.ln_f(x_clean)
+        x_clean = self.ln_f(x_clean)
 
         if not is_preliminary_pass:
-            x_ablated = self.transformer.ln_f(x_ablated)
+            x_ablated = self.ln_f(x_ablated)
 
-            if self.config.reconstruction_loss_type == "MSE":
+            if self.cfg.reconstruction_loss_type == "MSE":
                 # Final layer reconstruction loss
                 x_clean_norm = F.normalize(x_clean, p=2, dim=-1)
                 x_ablated_norm = F.normalize(x_ablated, p=2, dim=-1)
                 final_reconstruction_loss = F.mse_loss(x_clean_norm, x_ablated_norm)
                 total_reconstruction_loss += final_reconstruction_loss
             else:
-                assert self.config.reconstruction_loss_type == None, "unknown reconstruction loss type"
+                assert self.cfg.reconstruction_loss_type == None, "unknown reconstruction loss type"
 
         logits_ablated = None if is_preliminary_pass else self.lm_head(x_ablated)
         logits_clean = self.lm_head(x_clean)
@@ -137,12 +138,12 @@ class GPTNeoWithSelfAblation(HookedRootModule):
                 loss_ablated = F.cross_entropy(logits_ablated.view(-1, logits_ablated.size(-1)), targets.view(-1))
 
             # Average the reconstruction loss over all layers
-            avg_reconstruction_loss = total_reconstruction_loss / (self.config.num_layers + 1)
+            avg_reconstruction_loss = total_reconstruction_loss / (self.cfg.n_layers + 1)
 
             # Combine losses
-            loss = sum([self.config.loss_coeff_base * loss_clean,
-                        self.config.loss_coeff_ablated * loss_ablated,
-                        self.config.reconstruction_coeff * avg_reconstruction_loss])
+            loss = sum([self.cfg.loss_coeff_base * loss_clean,
+                        self.cfg.loss_coeff_ablated * loss_ablated,
+                        self.cfg.reconstruction_coeff * avg_reconstruction_loss])
 
             outputs.update({
                 "loss": loss,
@@ -157,12 +158,12 @@ class GPTNeoWithSelfAblation(HookedRootModule):
             attention_ablation_scores = self.attn_ablation_hook(attention_ablation_scores)
             
             the_shape = attention_ablation_scores.shape
-            attention_ablation_scores = attention_ablation_scores.reshape(*the_shape[:-1], self.config.num_layers, self.config.hidden_size)
+            attention_ablation_scores = attention_ablation_scores.reshape(*the_shape[:-1], self.cfg.n_layers, self.cfg.hidden_size)
             
             neuron_ablation_scores = self.neuron_ablations_head(x_clean)
             neuron_ablation_scores = self.neuron_ablation_hook(neuron_ablation_scores)
             
-            neuron_ablation_scores = neuron_ablation_scores.reshape(*the_shape[:-1], self.config.num_layers, self.config.mlp_hidden_size)
+            neuron_ablation_scores = neuron_ablation_scores.reshape(*the_shape[:-1], self.cfg.n_layers, self.cfg.mlp_hidden_size)
             outputs.update({
                 "attention_ablation_scores": attention_ablation_scores,
                 "neuron_ablation_scores": neuron_ablation_scores,
@@ -177,7 +178,7 @@ class GPTNeoWithSelfAblation(HookedRootModule):
         x = torch.tensor(input_ids, dtype=torch.long, device=device).unsqueeze(0) if isinstance(input_ids, list) else input_ids.to(device)
 
         for _ in range(max_new_tokens):
-            x_crop = x[:, -self.config.max_position_embeddings:]
+            x_crop = x[:, -self.cfg.max_position_embeddings:]
 
             with torch.no_grad():
                 outputs = self(x_crop)
@@ -189,3 +190,21 @@ class GPTNeoWithSelfAblation(HookedRootModule):
             x = torch.cat((x, next_token), dim=1)
 
         return x[0].tolist()
+    
+    def run_with_cache(
+        self, *model_args, return_cache_object=True, remove_batch_dim=False, **kwargs
+    ):
+        """Wrapper around `run_with_cache` in HookedRootModule.
+
+        If return_cache_object is True, this will return an ActivationCache object, with a bunch of
+        useful HookedTransformer specific methods, otherwise it will return a dictionary of
+        activations as in HookedRootModule.
+        """
+        out, cache_dict = super().run_with_cache(
+            *model_args, remove_batch_dim=remove_batch_dim, **kwargs
+        )
+        if return_cache_object:
+            cache = ActivationCache(cache_dict, self, has_batch_dim=not remove_batch_dim)
+            return out, cache
+        else:
+            return out, cache_dict

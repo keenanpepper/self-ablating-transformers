@@ -6,6 +6,7 @@ from .soft_top_k import soft_top_k, hard_top_k_with_soft_gradient
 
 from transformer_lens.hook_points import HookPoint, HookedRootModule
 
+from transformer_lens.hook_points import HookPoint, HookedRootModule
 
 class GPTNeoBlockWithSelfAblation(HookedRootModule):
     def __init__(self, config, layer_id):
@@ -16,8 +17,8 @@ class GPTNeoBlockWithSelfAblation(HookedRootModule):
         self.ln_2 = nn.LayerNorm(config.hidden_size, eps=1e-5)
         self.mlp = MLPWithSelfAblation(config)
         
-        self.attn_hook = HookPoint()
-        self.mlp_hook = HookPoint()
+        self.hook_attn_out = HookPoint()
+        self.hook_mlp_out = HookPoint()
         
         if self.config.has_layer_by_layer_ablation_mask:
             # Ablation heads
@@ -67,11 +68,11 @@ class GPTNeoBlockWithSelfAblation(HookedRootModule):
 
         # Process x_clean
         attn_output_clean = self.attn(self.ln_1(x_clean), self.ln_1(x_clean))
-        attn_output_clean = self.attn_hook(attn_output_clean)
+        attn_output_clean = self.hook_attn_out(attn_output_clean)
         
         x_clean = x_clean + attn_output_clean
         x_clean = x_clean + self.mlp(self.ln_2(x_clean))
-        x_clean = self.mlp_hook(x_clean)
+        x_clean = self.hook_mlp_out(x_clean)
 
         if not is_preliminary_pass:
             # Process x_ablated with ablations
