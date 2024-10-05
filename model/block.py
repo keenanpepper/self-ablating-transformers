@@ -2,10 +2,11 @@ import torch
 import torch.nn as nn
 from .attention import AttentionWithSelfAblation
 from .mlp import MLPWithSelfAblation
-from .soft_top_k import soft_top_k
+from .soft_top_k import soft_top_k, hard_top_k_with_soft_gradient
 
 from transformer_lens.hook_points import HookPoint, HookedRootModule
 
+from transformer_lens.hook_points import HookPoint, HookedRootModule
 
 class GPTNeoBlockWithSelfAblation(HookedRootModule):
     def __init__(self, config, layer_id):
@@ -54,8 +55,16 @@ class GPTNeoBlockWithSelfAblation(HookedRootModule):
             attn_ablation = self.attn_ablation_hook(attn_ablation_scores)
             neuron_ablation = self.neuron_ablation_hook(neuron_ablation_scores)
 
-        attn_ablation = soft_top_k(attn_ablation_scores, self.config.k_attention, self.config.temperature_attention, eps=self.config.top_k_epsilon)
-        neuron_ablation = soft_top_k(neuron_ablation_scores, self.config.k_neurons, self.config.temperature_neurons, eps=self.config.top_k_epsilon)
+        top_k_fn = None
+        if self.config.ablation_processing == "soft-top-K-version-1":
+            top_k_fn = soft_top_k
+        elif self.config.ablation_processing == "hard-top-K-with-soft-gradient":
+            top_k_fn = hard_top_k_with_soft_gradient
+        else:
+            raise ValueError(f"unknown ablation_processing value {self.config.ablation_processing}")
+
+        attn_ablation = top_k_fn(attn_ablation_scores, self.config.k_attention, self.config.temperature_attention, eps=self.config.top_k_epsilon)
+        neuron_ablation = top_k_fn(neuron_ablation_scores, self.config.k_neurons, self.config.temperature_neurons, eps=self.config.top_k_epsilon)
 
         # Process x_clean
         attn_output_clean = self.attn(self.ln_1(x_clean), self.ln_1(x_clean))

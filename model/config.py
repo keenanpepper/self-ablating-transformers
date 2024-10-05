@@ -27,6 +27,7 @@ class GPTNeoWithSelfAblationConfig:
         has_layer_by_layer_ablation_mask=True,
         has_overall_ablation_mask=False,
         reconstruction_loss_type="MSE",
+        ablation_processing="soft-top-K-version-1",
     ):
         self.top_k_epsilon = top_k_epsilon
         self.vocab_size = vocab_size
@@ -46,6 +47,7 @@ class GPTNeoWithSelfAblationConfig:
         self.has_layer_by_layer_ablation_mask = has_layer_by_layer_ablation_mask
         self.has_overall_ablation_mask = has_overall_ablation_mask
         self.reconstruction_loss_type = reconstruction_loss_type
+        self.ablation_processing = ablation_processing
         
         # Loss calculation parameters
         self.loss_coeff_base = loss_coeff_base
@@ -111,7 +113,7 @@ class WandBConfig:
     in full and reproducible.
     """
     def __init__(self, model_config, training_config, dataset_name,
-                 ablation_processing, top_k_level, per_layer_ablation_position):
+                 top_k_level, per_layer_ablation_position):
         # model config stuff
         self.vocab_size = model_config.vocab_size
         self.hidden_size = model_config.hidden_size
@@ -135,6 +137,7 @@ class WandBConfig:
                   else ("overall" if model_config.has_overall_ablation_mask
                         else None)))
         self.reconstuction_loss = model_config.reconstruction_loss_type
+        self.ablation_processing = model_config.ablation_processing
 
         # training config stuff
         self.train_file = training_config.train_file
@@ -156,11 +159,6 @@ class WandBConfig:
         self.dataset_name = dataset_name
         # add more here if you use a new dataset
         assert self.dataset_name in ["TinyStories"]
-
-        self.ablation_processing = ablation_processing
-        # add more here if you change the strategy to something other than soft-top-K
-        # the first one we used could be called like "direct-with-density-loss" or something
-        assert self.ablation_processing in ["soft-top-K-version-1"]
 
         self.top_k_level = top_k_level
         # "overall" means top-K is performed over the whole model (all layers)
