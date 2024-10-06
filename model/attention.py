@@ -17,7 +17,7 @@ class AttentionWithSelfAblation(HookedRootModule):
         self.k_hook = HookPoint()
         self.v_hook = HookPoint()
         self.q_hook = HookPoint()
-        self.attn_hook = HookPoint()
+        self.hook_pattern = HookPoint()
         self.hook_z = HookPoint()
         self.ablated_context_hook = HookPoint()
 
@@ -54,7 +54,7 @@ class AttentionWithSelfAblation(HookedRootModule):
             scores = scores.masked_fill(causal_mask.unsqueeze(0).unsqueeze(0), float('-inf'))
 
         attn = F.softmax(scores, dim=-1)
-        attn = self.attn_hook(attn)
+        attn = self.hook_pattern(attn)
         context = torch.matmul(attn, v)
 
         context = context.transpose(1, 2).contiguous()

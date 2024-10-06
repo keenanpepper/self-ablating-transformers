@@ -16,8 +16,10 @@ class GPTNeoBlockWithSelfAblation(HookedRootModule):
         self.ln_2 = LayerNorm(config)
         self.mlp = MLPWithSelfAblation(config)
 
+        self.hook_resid_pre = HookPoint()
         self.hook_attn_out = HookPoint()
         self.hook_mlp_out = HookPoint()
+        self.hook_resid_post = HookPoint()
 
         if self.config.has_layer_by_layer_ablation_mask:
             # Ablation heads
@@ -38,6 +40,11 @@ class GPTNeoBlockWithSelfAblation(HookedRootModule):
         Seems like if you're doing overall model top-K then that's not really compatible with
         having both overall and layer-by-layer ablation scores added together, right?
         """
+        if is_preliminary_pass:
+            x_clean = self.hook_resid_pre(x_clean)
+        else:
+            x_ablated = self.hook_resid_pre(x_ablated)
+
         attn_ablation_scores = torch.zeros(x_clean.shape[:-1] + (self.config.d_model,), device=self.get_my_device())
         neuron_ablation_scores = torch.zeros(x_clean.shape[:-1] + (self.config.d_mlp,), device=self.get_my_device())
 
@@ -68,16 +75,25 @@ class GPTNeoBlockWithSelfAblation(HookedRootModule):
         # Process x_clean
         attn_output_clean = self.attn(self.ln_1(x_clean), self.ln_1(x_clean))
         attn_output_clean = self.hook_attn_out(attn_output_clean)
-        
+
         x_clean = x_clean + attn_output_clean
-        x_clean = x_clean + self.mlp(self.ln_2(x_clean))
-        x_clean = self.hook_mlp_out(x_clean)
+        mlp_out = self.mlp(self.ln_2(x_clean))
+        if is_preliminary_pass:
+            mlp_out = self.hook_mlp_out(mlp_out)
+        x_clean = x_clean + mlp_out
 
         if not is_preliminary_pass:
             # Process x_ablated with ablations
             attn_output_ablated = self.attn(self.ln_1(x_ablated), self.ln_1(x_clean), attn_ablation)
             x_ablated = x_ablated + attn_output_ablated
-            x_ablated = x_ablated + self.mlp(self.ln_2(x_ablated), neuron_ablation)
+            mlp_out = self.mlp(self.ln_2(x_ablated), neuron_ablation)
+            mlp_out = self.hook_mlp_out(mlp_out)
+            x_ablated = x_ablated + mlp_out
+
+        if is_preliminary_pass:
+            x_clean = self.hook_resid_post(x_clean)
+        else:
+            x_ablated = self.hook_resid_post(x_ablated)
 
         outputs = dict()
         outputs["x_ablated"] = None if is_preliminary_pass else x_ablated
