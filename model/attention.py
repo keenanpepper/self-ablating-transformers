@@ -1,6 +1,7 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+from jaxtyping import Float
 
 from transformer_lens.hook_points import HookPoint, HookedRootModule
 
@@ -8,16 +9,16 @@ class AttentionWithSelfAblation(HookedRootModule):
     def __init__(self, config, layer_id):
         super().__init__()
         self.is_local = (config.attention_layers[layer_id] == "local")
-        self.num_heads = config.num_heads
+        self.num_heads = config.n_heads
         self.hidden_size = config.d_model
-        self.head_dim = config.d_model // config.num_heads
+        self.head_dim = config.d_model // config.n_heads
         self.config = config
         
         self.k_hook = HookPoint()
         self.v_hook = HookPoint()
         self.q_hook = HookPoint()
         self.attn_hook = HookPoint()
-        self.context_hook = HookPoint()
+        self.hook_z = HookPoint()
         self.ablated_context_hook = HookPoint()
 
         self.attention = nn.ModuleDict(dict(
@@ -56,9 +57,11 @@ class AttentionWithSelfAblation(HookedRootModule):
         attn = self.attn_hook(attn)
         context = torch.matmul(attn, v)
 
-        context = context.transpose(1, 2).contiguous().view(batch_size, seq_len, self.hidden_size)
-        
-        context = self.context_hook(context)
+        context = context.transpose(1, 2).contiguous()
+
+        context = self.hook_z(context)
+
+        context = context.view(batch_size, seq_len, self.hidden_size)
 
         if ablation_mask is not None:
             assert context.shape == ablation_mask.shape, f"context has shape {context.shape} while ablation mask has shape {ablation_mask.shape}"
@@ -67,3 +70,27 @@ class AttentionWithSelfAblation(HookedRootModule):
         self.ablated_context_hook(context)
 
         return self.attention.out_proj(context)
+
+    @property
+    def W_K(self) -> Float[torch.Tensor, "n_heads d_head d_model"]:
+        d_head = self.config.d_model // self.config.n_heads
+        return self.attention.k_proj.weight.reshape(self.config.n_heads, d_head, self.config.d_model)
+
+    @property
+    def W_Q(self) -> Float[torch.Tensor, "n_heads d_head d_model"]:
+        d_head = self.config.d_model // self.config.n_heads
+        return self.attention.q_proj.weight.reshape(self.config.n_heads, d_head, self.config.d_model)
+
+    @property
+    def W_V(self) -> Float[torch.Tensor, "n_heads d_head d_model"]:
+        d_head = self.config.d_model // self.config.n_heads
+        return self.attention.v_proj.weight.reshape(self.config.n_heads, d_head, self.config.d_model)
+
+    @property
+    def W_O(self) -> Float[torch.Tensor, "n_heads d_head d_model"]:
+        d_head = self.config.d_model // self.config.n_heads
+        return self.attention.out_proj.weight.reshape(self.config.n_heads, d_head, self.config.d_model)
+
+    @property
+    def b_O(self) -> Float[torch.Tensor, "d_model"]:
+        return self.attention.out_proj.bias

@@ -21,8 +21,8 @@ class GPTNeoBlockWithSelfAblation(HookedRootModule):
 
         if self.config.has_layer_by_layer_ablation_mask:
             # Ablation heads
-            self.attention_ablation_head = nn.Linear(config.hidden_size, config.hidden_size)
-            self.neuron_ablation_head = nn.Linear(config.hidden_size, config.mlp_hidden_size)
+            self.attention_ablation_head = nn.Linear(config.d_model, config.d_model)
+            self.neuron_ablation_head = nn.Linear(config.d_model, config.mlp_hidden_size)
             
             self.attn_ablation_hook = HookPoint()
             self.neuron_ablation_hook = HookPoint()
@@ -39,7 +39,7 @@ class GPTNeoBlockWithSelfAblation(HookedRootModule):
         having both overall and layer-by-layer ablation scores added together, right?
         """
         attn_ablation_scores = torch.zeros(x_clean.shape[:-1] + (self.config.d_model,), device=self.get_my_device())
-        neuron_ablation_scores = torch.zeros(x_clean.shape[:-1] + (self.config.mlp_hidden_size,), device=self.get_my_device())
+        neuron_ablation_scores = torch.zeros(x_clean.shape[:-1] + (self.config.d_mlp,), device=self.get_my_device())
 
         if self.config.has_overall_ablation_mask and not is_preliminary_pass:
             attn_ablation_scores = attn_ablation_scores + overall_attention_ablation_scores

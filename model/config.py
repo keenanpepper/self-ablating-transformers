@@ -10,9 +10,9 @@ class GPTNeoWithSelfAblationConfig:
         self,
         d_vocab=50257,
         d_model=128,
-        mlp_hidden_size=None,
+        d_mlp=None,
         n_layers=8,
-        num_heads=16,
+        n_heads=16,
         max_position_embeddings=2048,
         window_size=256,
         attention_layers=None,
@@ -31,18 +31,22 @@ class GPTNeoWithSelfAblationConfig:
         eps=1e-5, # used in LayerNorm
         dtype=torch.float32,
         tokenizer_name="gpt2",
+        device=None,
     ):
         self.top_k_epsilon = top_k_epsilon
         self.d_vocab = d_vocab
         self.d_model = d_model
-        self.mlp_hidden_size = 4 * self.d_model if mlp_hidden_size is None else mlp_hidden_size
+        self.d_mlp = 4 * self.d_model if d_mlp is None else d_mlp
         self.n_layers = n_layers
-        self.num_heads = num_heads
+        self.n_heads = n_heads
         self.max_position_embeddings = max_position_embeddings
         self.window_size = window_size
         self.attention_layers = ["global"] * n_layers if attention_layers is None else attention_layers
         self.eps = eps
         self.dtype = dtype
+        self.device = device
+        if self.device == None:
+            self.device = "cuda" if torch.cuda.is_available() else "cpu"
 
         # Ablation-specific parameters
         self.k_attention = k_attention
@@ -64,7 +68,7 @@ class GPTNeoWithSelfAblationConfig:
             n_layers=n_layers,
             d_model=d_model,
             n_ctx=max_position_embeddings,
-            d_head=d_model // num_heads,
+            d_head=d_model // n_heads,
             act_fn="gelu",
         )
 
@@ -78,7 +82,7 @@ class GPTNeoWithSelfAblationConfig:
 #        self.use_hook_tokens = False
         self.normalization_type = "LN" # we always use regular LayerNorm for now
 #        self.use_normalization_before_and_after = False
-#        self.attn_only = False
+        self.attn_only = False
 #        self.n_key_value_heads = None
 
 
@@ -137,8 +141,8 @@ class WandBConfig:
         self.vocab_size = model_config.c_vocab
         self.hidden_size = model_config.d_model
         self.mlp_hidden_size = model_config.mlp_hidden_size
-        self.num_layers = model_config.num_layers
-        self.num_heads = model_config.num_heads
+        self.num_layers = model_config.n_layers
+        self.num_heads = model_config.n_heads
         self.max_position_embeddings = model_config.max_position_embeddings
         self.window_size = model_config.window_size
         self.attention_layers = model_config.attention_layers

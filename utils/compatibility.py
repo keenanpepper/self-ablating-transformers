@@ -2,8 +2,8 @@ def remap_state_dict_keys(state_dict):
     key_mapping = {
     "transformer.wte.weight": "wte.weight",
     "transformer.wpe.weight": "wpe.weight",
-    "transformer.ln_f.weight": "ln_f.w",
-    "transformer.ln_f.bias": "ln_f.b",
+    "transformer.ln_f.weight": "ln_final.w",
+    "transformer.ln_f.bias": "ln_final.b",
     }
 
     for i in range(8):  # Assuming 8 blocks

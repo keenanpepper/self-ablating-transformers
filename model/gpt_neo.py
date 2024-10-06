@@ -24,7 +24,7 @@ class GPTNeoWithSelfAblation(HookedRootModule):
         self.wte = nn.Embedding(cfg.d_vocab, cfg.d_model)
         self.wpe = nn.Embedding(cfg.max_position_embeddings, cfg.d_model)
         self.blocks = nn.ModuleList([GPTNeoBlockWithSelfAblation(cfg, i) for i in range(cfg.n_layers)])
-        self.ln_f = LayerNorm(cfg)
+        self.ln_final = LayerNorm(cfg)
         
         self.lm_head = nn.Linear(cfg.d_model, cfg.d_vocab, bias=False)
 
@@ -33,7 +33,7 @@ class GPTNeoWithSelfAblation(HookedRootModule):
         # This should work but as of 2024-09-24 no training run has been done with it.
         if cfg.has_overall_ablation_mask:
             attn_ablation_size = cfg.n_layers * cfg.d_model
-            neuron_ablation_size = cfg.n_layers * cfg.mlp_hidden_size
+            neuron_ablation_size = cfg.n_layers * cfg.d_mlp
             self.attention_ablations_head = nn.Linear(cfg.d_model, attn_ablation_size)
             self.neuron_ablations_head = nn.Linear(cfg.d_model, neuron_ablation_size)
             
@@ -117,10 +117,10 @@ class GPTNeoWithSelfAblation(HookedRootModule):
                 else:
                     assert self.cfg.reconstruction_loss_type == None, "unknown reconstruction loss type"
 
-        x_clean = self.ln_f(x_clean)
+        x_clean = self.ln_final(x_clean)
 
         if not is_preliminary_pass:
-            x_ablated = self.ln_f(x_ablated)
+            x_ablated = self.ln_final(x_ablated)
 
             if self.cfg.reconstruction_loss_type == "MSE":
                 # Final layer reconstruction loss
@@ -172,7 +172,7 @@ class GPTNeoWithSelfAblation(HookedRootModule):
             neuron_ablation_scores = self.neuron_ablations_head(x_clean)
             neuron_ablation_scores = self.neuron_ablation_hook(neuron_ablation_scores)
             
-            neuron_ablation_scores = neuron_ablation_scores.reshape(*the_shape[:-1], self.cfg.n_layers, self.cfg.mlp_hidden_size)
+            neuron_ablation_scores = neuron_ablation_scores.reshape(*the_shape[:-1], self.cfg.n_layers, self.cfg.d_mlp)
             outputs.update({
                 "attention_ablation_scores": attention_ablation_scores,
                 "neuron_ablation_scores": neuron_ablation_scores,
@@ -217,6 +217,7 @@ class GPTNeoWithSelfAblation(HookedRootModule):
         else:
             return out, cache_dict
 
+    # Give access to all weights as properties.
     @property
     def W_U(self) -> Float[torch.Tensor, "d_model d_vocab"]:
         """Convenience to get the unembedding matrix.
@@ -224,6 +225,57 @@ class GPTNeoWithSelfAblation(HookedRootModule):
         I.e. the linear map from the final residual stream to the output logits).
         """
         return self.lm_head.weight.transpose(0,1)
+
+#    @property
+#    def b_U(self) -> Float[torch.Tensor, "d_vocab"]:
+#        return self.unembed.b_U
+
+#    @property
+#    def W_E(self) -> Float[torch.Tensor, "d_vocab d_model"]:
+#        """Convenience to get the embedding matrix."""
+#        return self.embed.W_E
+
+#    @property
+#    def W_pos(self) -> Float[torch.Tensor, "n_ctx d_model"]:
+#        """Convenience function to get the positional embedding.
+#
+#        Only works on models with absolute positional embeddings!
+#        """
+#        return self.pos_embed.W_pos
+
+#    @property
+#    def W_E_pos(self) -> Float[torch.Tensor, "d_vocab+n_ctx d_model"]:
+#        """Concatenated W_E and W_pos.
+#
+#        Used as a full (overcomplete) basis of the input space, useful for full QK and full OV
+#        circuits.
+#        """
+#        return torch.cat([self.W_E, self.W_pos], dim=0)
+
+    # Layer-specific weights are stacked into one massive tensor and given as properties for
+    # convenience and a cache is used to avoid repeated computation. Often a useful convenience when
+    # we want to do analysis on weights across all layers. If GPU memory is a bottleneck, don't use
+    # these properties!
+
+    @property
+    def W_K(self) -> Float[torch.Tensor, "n_layers n_heads d_model d_head"]:
+        """Stack the key weights across all layers."""
+        return torch.stack([block.attn.attention.k_proj.weight for block in self.blocks], dim=0)
+
+    @property
+    def W_Q(self) -> Float[torch.Tensor, "n_layers n_heads d_model d_head"]:
+        """Stack the query weights across all layers."""
+        return torch.stack([block.attn.attention.q_proj.weight for block in self.blocks], dim=0)
+
+    @property
+    def W_V(self) -> Float[torch.Tensor, "n_layers n_heads d_model d_head"]:
+        """Stack the value weights across all layers."""
+        return torch.stack([block.attn.attention.v_proj.weight for block in self.blocks], dim=0)
+
+    @property
+    def W_O(self) -> Float[torch.Tensor, "n_layers n_heads d_head d_model"]:
+        """Stack the attn output weights across all layers."""
+        return torch.stack([block.attn.attention.out_proj.weight for block in self.blocks], dim=0)
 
     def tokens_to_residual_directions(
         self,
@@ -281,3 +333,36 @@ class GPTNeoWithSelfAblation(HookedRootModule):
                 raise ValueError(f"Invalid token type: {type(tokens)}")
             residual_direction = self.W_U[:, token]
             return residual_direction
+
+    # Various utility functions
+    def accumulated_bias(
+        self, layer: int, mlp_input: bool = False, include_mlp_biases=True
+    ) -> Float[torch.Tensor, "d_model"]:
+        """Accumulated Bias.
+
+        Returns the accumulated bias from all layer outputs (ie the b_Os and b_outs), up to the
+        input of layer L.
+
+        Args:
+            layer (int): Layer number, in [0, n_layers]. layer==0 means no layers, layer==n_layers
+                means all layers.
+            mlp_input (bool): If True, we take the bias up to the input of the MLP
+                of layer L (ie we include the bias from the attention output of the current layer,
+                otherwise just biases from previous layers)
+            include_mlp_biases (bool): Whether to include the biases of MLP layers. Often useful to
+                have as False if we're expanding attn_out into individual heads, but keeping mlp_out
+                as is.
+
+        Returns:
+            bias (torch.Tensor): [d_model], accumulated bias
+        """
+        accumulated_bias = torch.zeros(self.cfg.d_model, device=self.cfg.device)
+
+        for i in range(layer):
+            accumulated_bias += self.blocks[i].attn.b_O
+            if include_mlp_biases:
+                accumulated_bias += self.blocks[i].mlp.b_out
+        if mlp_input:
+            assert layer < self.cfg.n_layers, "Cannot include attn_bias from beyond the final layer"
+            accumulated_bias += self.blocks[layer].attn.b_O
+        return accumulated_bias
