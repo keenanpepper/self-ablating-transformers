@@ -8,8 +8,8 @@ class GPTNeoWithSelfAblationConfig:
     """
     def __init__(
         self,
-        vocab_size=50257,
-        hidden_size=128,
+        d_vocab=50257,
+        d_model=128,
         mlp_hidden_size=None,
         n_layers=8,
         num_heads=16,
@@ -28,16 +28,21 @@ class GPTNeoWithSelfAblationConfig:
         has_overall_ablation_mask=False,
         reconstruction_loss_type="MSE",
         ablation_processing="soft-top-K-version-1",
+        eps=1e-5, # used in LayerNorm
+        dtype=torch.float32,
+        tokenizer_name="gpt2",
     ):
         self.top_k_epsilon = top_k_epsilon
-        self.vocab_size = vocab_size
-        self.hidden_size = hidden_size
-        self.mlp_hidden_size = 4 * self.hidden_size if mlp_hidden_size is None else mlp_hidden_size
+        self.d_vocab = d_vocab
+        self.d_model = d_model
+        self.mlp_hidden_size = 4 * self.d_model if mlp_hidden_size is None else mlp_hidden_size
         self.n_layers = n_layers
         self.num_heads = num_heads
         self.max_position_embeddings = max_position_embeddings
         self.window_size = window_size
         self.attention_layers = ["global"] * n_layers if attention_layers is None else attention_layers
+        self.eps = eps
+        self.dtype = dtype
 
         # Ablation-specific parameters
         self.k_attention = k_attention
@@ -57,11 +62,25 @@ class GPTNeoWithSelfAblationConfig:
         # Transformer Lens specific parameters
         self.hooked_transformer_config = HookedAblatedTransformerConfig(
             n_layers=n_layers,
-            d_model=hidden_size,
+            d_model=d_model,
             n_ctx=max_position_embeddings,
-            d_head=hidden_size // num_heads,
+            d_head=d_model // num_heads,
             act_fn="gelu",
         )
+
+        # stuff added strictly for Transformer Lens
+#        self.tokenizer_name = tokenizer_name
+#        self.trust_remote_code = False
+#        self.d_vocab_out = -1
+#        self.post_embedding_ln = False
+#        self.positional_embedding_type = "learned"
+#        self.n_ctx = max_position_embeddings
+#        self.use_hook_tokens = False
+        self.normalization_type = "LN" # we always use regular LayerNorm for now
+#        self.use_normalization_before_and_after = False
+#        self.attn_only = False
+#        self.n_key_value_heads = None
+
 
     def __repr__(self):
         attributes = [f"{key}={repr(value)}" for key, value in vars(self).items()]
@@ -115,8 +134,8 @@ class WandBConfig:
     def __init__(self, model_config, training_config, dataset_name,
                  top_k_level, per_layer_ablation_position):
         # model config stuff
-        self.vocab_size = model_config.vocab_size
-        self.hidden_size = model_config.hidden_size
+        self.vocab_size = model_config.c_vocab
+        self.hidden_size = model_config.d_model
         self.mlp_hidden_size = model_config.mlp_hidden_size
         self.num_layers = model_config.num_layers
         self.num_heads = model_config.num_heads

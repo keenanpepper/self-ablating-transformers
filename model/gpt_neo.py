@@ -1,32 +1,41 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+from jaxtyping import Float, Int, Union
+import einops
+
 from .block import GPTNeoBlockWithSelfAblation
 
 from transformer_lens.hook_points import HookPoint, HookedRootModule
 from transformer_lens.ActivationCache import ActivationCache
+from transformer_lens.components import (
+    Embed,
+    LayerNorm,
+    PosEmbed,
+    Unembed,
+)
 
 class GPTNeoWithSelfAblation(HookedRootModule):
     def __init__(self, cfg):
-        super().__init__()
+        super().__init__(cfg)
         assert cfg.has_layer_by_layer_ablation_mask or cfg.has_overall_ablation_mask
         self.cfg = cfg
-        
-        self.wte = nn.Embedding(cfg.vocab_size, cfg.hidden_size)
-        self.wpe = nn.Embedding(cfg.max_position_embeddings, cfg.hidden_size)
+
+        self.wte = nn.Embedding(cfg.d_vocab, cfg.d_model)
+        self.wpe = nn.Embedding(cfg.max_position_embeddings, cfg.d_model)
         self.blocks = nn.ModuleList([GPTNeoBlockWithSelfAblation(cfg, i) for i in range(cfg.n_layers)])
-        self.ln_f = nn.LayerNorm(cfg.hidden_size, eps=1e-5)
+        self.ln_f = LayerNorm(cfg)
         
-        self.lm_head = nn.Linear(cfg.hidden_size, cfg.vocab_size, bias=False)
+        self.lm_head = nn.Linear(cfg.d_model, cfg.d_vocab, bias=False)
 
         # Note that in theory the two ablations types (overall and layer-by-layer
         # CAN be used together (the relevance scores are added up before the soft-top-K.
         # This should work but as of 2024-09-24 no training run has been done with it.
         if cfg.has_overall_ablation_mask:
-            attn_ablation_size = cfg.n_layers * cfg.hidden_size
+            attn_ablation_size = cfg.n_layers * cfg.d_model
             neuron_ablation_size = cfg.n_layers * cfg.mlp_hidden_size
-            self.attention_ablations_head = nn.Linear(cfg.hidden_size, attn_ablation_size)
-            self.neuron_ablations_head = nn.Linear(cfg.hidden_size, neuron_ablation_size)
+            self.attention_ablations_head = nn.Linear(cfg.d_model, attn_ablation_size)
+            self.neuron_ablations_head = nn.Linear(cfg.d_model, neuron_ablation_size)
             
             self.attn_ablation_hook = HookPoint()
             self.neuron_ablation_hook = HookPoint()
@@ -158,7 +167,7 @@ class GPTNeoWithSelfAblation(HookedRootModule):
             attention_ablation_scores = self.attn_ablation_hook(attention_ablation_scores)
             
             the_shape = attention_ablation_scores.shape
-            attention_ablation_scores = attention_ablation_scores.reshape(*the_shape[:-1], self.cfg.n_layers, self.cfg.hidden_size)
+            attention_ablation_scores = attention_ablation_scores.reshape(*the_shape[:-1], self.cfg.n_layers, self.cfg.d_model)
             
             neuron_ablation_scores = self.neuron_ablations_head(x_clean)
             neuron_ablation_scores = self.neuron_ablation_hook(neuron_ablation_scores)
@@ -190,12 +199,11 @@ class GPTNeoWithSelfAblation(HookedRootModule):
             x = torch.cat((x, next_token), dim=1)
 
         return x[0].tolist()
-    
+
     def run_with_cache(
         self, *model_args, return_cache_object=True, remove_batch_dim=False, **kwargs
     ):
         """Wrapper around `run_with_cache` in HookedRootModule.
-
         If return_cache_object is True, this will return an ActivationCache object, with a bunch of
         useful HookedTransformer specific methods, otherwise it will return a dictionary of
         activations as in HookedRootModule.
@@ -208,3 +216,68 @@ class GPTNeoWithSelfAblation(HookedRootModule):
             return out, cache
         else:
             return out, cache_dict
+
+    @property
+    def W_U(self) -> Float[torch.Tensor, "d_model d_vocab"]:
+        """Convenience to get the unembedding matrix.
+
+        I.e. the linear map from the final residual stream to the output logits).
+        """
+        return self.lm_head.weight.transpose(0,1)
+
+    def tokens_to_residual_directions(
+        self,
+        tokens: Union[
+            str,
+            int,
+            Int[torch.Tensor, ""],
+            Int[torch.Tensor, "pos"],
+            Int[torch.Tensor, "batch pos"],
+        ],
+    ) -> Union[
+        Float[torch.Tensor, "d_model"],
+        Float[torch.Tensor, "pos d_model"],
+        Float[torch.Tensor, "batch pos d_model"],
+    ]:
+        """Map tokens to a tensor with the unembedding vector for those tokens.
+
+        I.e. the vector in the residual stream that we dot with to the get the logit for that token.
+
+        WARNING: If you use this without folding in LayerNorm, the results will be misleading and
+        may be incorrect, as the LN weights change the unembed map. This is done automatically with
+        the fold_ln flag on from_pretrained
+
+        WARNING 2: LayerNorm scaling will scale up or down the effective direction in the residual
+        stream for each output token on any given input token position.
+        ActivationCache.apply_ln_to_stack will apply the appropriate scaling to these directions.
+
+        Args:
+            tokens (Union[str, int, torch.Tensor]): The token(s). If a single token, can be a single
+                element tensor, an integer, or string. If string, will be mapped to a single token
+                using to_single_token, and an error raised if it's multiple tokens. The method also
+                works for a batch of input tokens.
+
+        Returns:
+            residual_direction torch.Tensor: The unembedding vector for the token(s), a stack of
+                [d_model] tensor.
+        """
+        if isinstance(tokens, torch.Tensor) and tokens.numel() > 1:
+            # If the tokens are a tensor, and have more than one element, assume they are a batch of
+            # tokens.
+            residual_directions = self.W_U[:, tokens]
+            residual_directions = einops.rearrange(
+                residual_directions, "d_model ... -> ... d_model"
+            )
+            return residual_directions
+        else:
+            # Otherwise there is a single token
+            if isinstance(tokens, str):
+                token = self.to_single_token(tokens)
+            elif isinstance(tokens, int):
+                token = tokens
+            elif isinstance(tokens, torch.Tensor) and tokens.numel() == 1:
+                token = tokens.item()
+            else:
+                raise ValueError(f"Invalid token type: {type(tokens)}")
+            residual_direction = self.W_U[:, token]
+            return residual_direction
