@@ -73,16 +73,18 @@ class GPTNeoWithSelfAblationConfig:
         )
 
         # stuff added strictly for Transformer Lens
+        self.attn_only = False
+        self.normalization_type = "LN" # we always use regular LayerNorm for now
+        self.default_prepend_bos = False
+        self.tokenizer_prepends_bos = False
+        self.n_ctx = max_position_embeddings
 #        self.tokenizer_name = tokenizer_name
 #        self.trust_remote_code = False
 #        self.d_vocab_out = -1
 #        self.post_embedding_ln = False
 #        self.positional_embedding_type = "learned"
-#        self.n_ctx = max_position_embeddings
 #        self.use_hook_tokens = False
-        self.normalization_type = "LN" # we always use regular LayerNorm for now
 #        self.use_normalization_before_and_after = False
-        self.attn_only = False
 #        self.n_key_value_heads = None
 
 
