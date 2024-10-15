@@ -36,7 +36,7 @@ class AttentionWithSelfAblation(HookedRootModule):
         q = self.attention.q_proj(x).view(batch_size, seq_len, self.num_heads, self.head_dim).transpose(1, 2)
         k = self.attention.k_proj(x_clean).view(batch_size, seq_len, self.num_heads, self.head_dim).transpose(1, 2)
         v = self.attention.v_proj(x_clean).view(batch_size, seq_len, self.num_heads, self.head_dim).transpose(1, 2)
-        
+
         # Apply hooks
         q = self.q_hook(q)
         k = self.k_hook(k)

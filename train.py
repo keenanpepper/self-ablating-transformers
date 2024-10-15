@@ -70,20 +70,20 @@ if __name__ == "__main__":
 
     print("Loading environment variables")
     load_dotenv()
-    
+
     # Gets arguments from command line
     parser = return_parser()
     args = parser.parse_args()
-    
+
     model_name = args.model_name
-    
+
     # Creates a dictionary with the arguments except model_name
     args = vars(args)
     del args['model_name']
-    
+
     # Set up configuration
     model_config = GPTNeoWithSelfAblationConfig(d_model=128, **args)
-        
+
     training_config = TrainingConfig(batch_size=32, save_path=f"model_weights/{model_name}.pt")
 
     # Initialize model
