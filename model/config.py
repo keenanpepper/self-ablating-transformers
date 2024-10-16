@@ -9,8 +9,8 @@ class GPTNeoWithSelfAblationConfig:
     def __init__(
         self,
         vocab_size=50257,
-        hidden_size=128,
-        mlp_hidden_size=None,
+        d_model=128,
+        d_mlp=None,
         n_layers=8,
         num_heads=16,
         max_position_embeddings=2048,
@@ -31,8 +31,8 @@ class GPTNeoWithSelfAblationConfig:
     ):
         self.top_k_epsilon = top_k_epsilon
         self.vocab_size = vocab_size
-        self.hidden_size = hidden_size
-        self.mlp_hidden_size = 4 * self.hidden_size if mlp_hidden_size is None else mlp_hidden_size
+        self.d_model = d_model
+        self.d_mlp = 4 * self.d_model if d_mlp is None else d_mlp
         self.n_layers = n_layers
         self.num_heads = num_heads
         self.max_position_embeddings = max_position_embeddings
@@ -57,9 +57,9 @@ class GPTNeoWithSelfAblationConfig:
         # Transformer Lens specific parameters
         self.hooked_transformer_config = HookedAblatedTransformerConfig(
             n_layers=n_layers,
-            d_model=hidden_size,
+            d_model=d_model,
             n_ctx=max_position_embeddings,
-            d_head=hidden_size // num_heads,
+            d_head=d_model // num_heads,
             act_fn="gelu",
         )
 
@@ -116,8 +116,8 @@ class WandBConfig:
                  top_k_level, per_layer_ablation_position):
         # model config stuff
         self.vocab_size = model_config.vocab_size
-        self.hidden_size = model_config.hidden_size
-        self.mlp_hidden_size = model_config.mlp_hidden_size
+        self.hidden_size = model_config.d_model
+        self.mlp_hidden_size = model_config.d_mlp
         self.num_layers = model_config.num_layers
         self.num_heads = model_config.num_heads
         self.max_position_embeddings = model_config.max_position_embeddings

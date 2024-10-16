@@ -11,29 +11,29 @@ class GPTNeoWithSelfAblation(HookedRootModule):
         super().__init__()
         assert cfg.has_layer_by_layer_ablation_mask or cfg.has_overall_ablation_mask
         self.cfg = cfg
-        
-        self.wte = nn.Embedding(cfg.vocab_size, cfg.hidden_size)
-        self.wpe = nn.Embedding(cfg.max_position_embeddings, cfg.hidden_size)
+
+        self.wte = nn.Embedding(cfg.vocab_size, cfg.d_model)
+        self.wpe = nn.Embedding(cfg.max_position_embeddings, cfg.d_model)
         self.blocks = nn.ModuleList([GPTNeoBlockWithSelfAblation(cfg, i) for i in range(cfg.n_layers)])
-        self.ln_f = nn.LayerNorm(cfg.hidden_size, eps=1e-5)
-        
-        self.lm_head = nn.Linear(cfg.hidden_size, cfg.vocab_size, bias=False)
+        self.ln_f = nn.LayerNorm(cfg.d_model, eps=1e-5)
+
+        self.lm_head = nn.Linear(cfg.d_model, cfg.vocab_size, bias=False)
 
         # Note that in theory the two ablations types (overall and layer-by-layer
         # CAN be used together (the relevance scores are added up before the soft-top-K.
         # This should work but as of 2024-09-24 no training run has been done with it.
         if cfg.has_overall_ablation_mask:
-            attn_ablation_size = cfg.n_layers * cfg.hidden_size
-            neuron_ablation_size = cfg.n_layers * cfg.mlp_hidden_size
-            self.attention_ablations_head = nn.Linear(cfg.hidden_size, attn_ablation_size)
-            self.neuron_ablations_head = nn.Linear(cfg.hidden_size, neuron_ablation_size)
-            
+            attn_ablation_size = cfg.n_layers * cfg.d_model
+            neuron_ablation_size = cfg.n_layers * cfg.d_mlp
+            self.attention_ablations_head = nn.Linear(cfg.d_model, attn_ablation_size)
+            self.neuron_ablations_head = nn.Linear(cfg.d_model, neuron_ablation_size)
+
             self.attn_ablation_hook = HookPoint()
             self.neuron_ablation_hook = HookPoint()
 
         # Tie weights
         self.wte.weight = self.lm_head.weight
-        
+
         # Creates hook dictionaries for transformer lens
         self.setup()
 
@@ -56,7 +56,7 @@ class GPTNeoWithSelfAblation(HookedRootModule):
         overall_attention_ablation_scores, overall_neuron_ablation_scores:
         if using an overall ablation mask this should be the result
         of the preliminary pass (pre-topK relevance scores), otherwise None
-        shapes: (batch_size, block_length, num_layers, [either hidden_size or mlp_hidden_size])
+        shapes: (batch_size, block_length, num_layers, [either d_model or d_mlp])
 
         """
         if self.cfg.has_overall_ablation_mask and not is_preliminary_pass:
@@ -153,17 +153,17 @@ class GPTNeoWithSelfAblation(HookedRootModule):
             })
 
         if is_preliminary_pass:
-            
+
             attention_ablation_scores = self.attention_ablations_head(x_clean)
             attention_ablation_scores = self.attn_ablation_hook(attention_ablation_scores)
-            
+
             the_shape = attention_ablation_scores.shape
-            attention_ablation_scores = attention_ablation_scores.reshape(*the_shape[:-1], self.cfg.n_layers, self.cfg.hidden_size)
-            
+            attention_ablation_scores = attention_ablation_scores.reshape(*the_shape[:-1], self.cfg.n_layers, self.cfg.d_model)
+
             neuron_ablation_scores = self.neuron_ablations_head(x_clean)
             neuron_ablation_scores = self.neuron_ablation_hook(neuron_ablation_scores)
-            
-            neuron_ablation_scores = neuron_ablation_scores.reshape(*the_shape[:-1], self.cfg.n_layers, self.cfg.mlp_hidden_size)
+
+            neuron_ablation_scores = neuron_ablation_scores.reshape(*the_shape[:-1], self.cfg.n_layers, self.cfg.d_mlp)
             outputs.update({
                 "attention_ablation_scores": attention_ablation_scores,
                 "neuron_ablation_scores": neuron_ablation_scores,

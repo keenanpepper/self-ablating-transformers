@@ -9,10 +9,10 @@ class AttentionWithSelfAblation(HookedRootModule):
         super().__init__()
         self.is_local = (config.attention_layers[layer_id] == "local")
         self.num_heads = config.num_heads
-        self.hidden_size = config.hidden_size
-        self.head_dim = config.hidden_size // config.num_heads
+        self.d_model = config.d_model
+        self.head_dim = config.d_model // config.num_heads
         self.config = config
-        
+
         self.k_hook = HookPoint()
         self.v_hook = HookPoint()
         self.q_hook = HookPoint()
@@ -21,10 +21,10 @@ class AttentionWithSelfAblation(HookedRootModule):
         self.ablated_context_hook = HookPoint()
 
         self.attention = nn.ModuleDict(dict(
-            k_proj = nn.Linear(config.hidden_size, config.hidden_size, bias=False),
-            v_proj = nn.Linear(config.hidden_size, config.hidden_size, bias=False),
-            q_proj = nn.Linear(config.hidden_size, config.hidden_size, bias=False),
-            out_proj = nn.Linear(config.hidden_size, config.hidden_size)
+            k_proj = nn.Linear(config.d_model, config.d_model, bias=False),
+            v_proj = nn.Linear(config.d_model, config.d_model, bias=False),
+            q_proj = nn.Linear(config.d_model, config.d_model, bias=False),
+            out_proj = nn.Linear(config.d_model, config.d_model)
         ))
 
     def forward(self, x, x_clean, ablation_mask=None):
@@ -56,14 +56,14 @@ class AttentionWithSelfAblation(HookedRootModule):
         attn = self.attn_hook(attn)
         context = torch.matmul(attn, v)
 
-        context = context.transpose(1, 2).contiguous().view(batch_size, seq_len, self.hidden_size)
-        
+        context = context.transpose(1, 2).contiguous().view(batch_size, seq_len, self.d_model)
+
         context = self.context_hook(context)
 
         if ablation_mask is not None:
             assert context.shape == ablation_mask.shape, f"context has shape {context.shape} while ablation mask has shape {ablation_mask.shape}"
             context = context * ablation_mask
-        
+
         self.ablated_context_hook(context)
 
         return self.attention.out_proj(context)

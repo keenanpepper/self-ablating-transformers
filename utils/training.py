@@ -50,8 +50,8 @@ class LossEstimator:
             losses_clean = torch.zeros(self.eval_iters)
             losses_ablated = torch.zeros(self.eval_iters)
             reconstruction_losses = torch.zeros(self.eval_iters)
-            attention_ablation_hits = torch.zeros(self.model.config.num_layers, self.model.config.hidden_size, dtype=torch.bool, device=self.device)
-            neuron_ablation_hits = torch.zeros(self.model.config.num_layers, self.model.config.mlp_hidden_size, dtype=torch.bool, device=self.device)
+            attention_ablation_hits = torch.zeros(self.model.config.num_layers, self.model.config.d_model, dtype=torch.bool, device=self.device)
+            neuron_ablation_hits = torch.zeros(self.model.config.num_layers, self.model.config.d_mlp, dtype=torch.bool, device=self.device)
 
             for k in tqdm(range(self.eval_iters)):
                 X, Y = batch_gen.get_batch()
