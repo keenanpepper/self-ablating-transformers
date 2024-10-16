@@ -6,8 +6,6 @@ from .soft_top_k import soft_top_k, hard_top_k_with_soft_gradient
 
 from transformer_lens.hook_points import HookPoint, HookedRootModule
 
-from transformer_lens.hook_points import HookPoint, HookedRootModule
-
 class GPTNeoBlockWithSelfAblation(HookedRootModule):
     def __init__(self, config, layer_id):
         super().__init__()
