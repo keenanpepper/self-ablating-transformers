@@ -5,6 +5,7 @@ from .block import GPTNeoBlockWithSelfAblation
 
 from transformer_lens.hook_points import HookPoint, HookedRootModule
 from transformer_lens.ActivationCache import ActivationCache
+from transformer_lens.components import LayerNorm
 
 class GPTNeoWithSelfAblation(HookedRootModule):
     def __init__(self, cfg):
@@ -15,7 +16,7 @@ class GPTNeoWithSelfAblation(HookedRootModule):
         self.wte = nn.Embedding(cfg.vocab_size, cfg.d_model)
         self.wpe = nn.Embedding(cfg.max_position_embeddings, cfg.d_model)
         self.blocks = nn.ModuleList([GPTNeoBlockWithSelfAblation(cfg, i) for i in range(cfg.n_layers)])
-        self.ln_f = nn.LayerNorm(cfg.d_model, eps=1e-5)
+        self.ln_final = LayerNorm(cfg)
 
         self.lm_head = nn.Linear(cfg.d_model, cfg.vocab_size, bias=False)
 
@@ -108,10 +109,10 @@ class GPTNeoWithSelfAblation(HookedRootModule):
                 else:
                     assert self.cfg.reconstruction_loss_type == None, "unknown reconstruction loss type"
 
-        x_clean = self.ln_f(x_clean)
+        x_clean = self.ln_final(x_clean)
 
         if not is_preliminary_pass:
-            x_ablated = self.ln_f(x_ablated)
+            x_ablated = self.ln_final(x_ablated)
 
             if self.cfg.reconstruction_loss_type == "MSE":
                 # Final layer reconstruction loss

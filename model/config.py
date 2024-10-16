@@ -28,6 +28,7 @@ class GPTNeoWithSelfAblationConfig:
         has_overall_ablation_mask=False,
         reconstruction_loss_type="MSE",
         ablation_processing="soft-top-K-version-1",
+        eps=1e-5,  # used for LayerNorm,
     ):
         self.top_k_epsilon = top_k_epsilon
         self.vocab_size = vocab_size
@@ -38,6 +39,8 @@ class GPTNeoWithSelfAblationConfig:
         self.max_position_embeddings = max_position_embeddings
         self.window_size = window_size
         self.attention_layers = ["global"] * n_layers if attention_layers is None else attention_layers
+        self.eps = eps
+        self.dtype = torch.float32 # no provision for other dtypes yet
 
         # Ablation-specific parameters
         self.k_attention = k_attention

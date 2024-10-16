@@ -5,14 +5,15 @@ from .mlp import MLPWithSelfAblation
 from .soft_top_k import soft_top_k, hard_top_k_with_soft_gradient
 
 from transformer_lens.hook_points import HookPoint, HookedRootModule
+from transformer_lens.components import LayerNorm
 
 class GPTNeoBlockWithSelfAblation(HookedRootModule):
     def __init__(self, config, layer_id):
         super().__init__()
         self.config = config
-        self.ln_1 = nn.LayerNorm(config.d_model, eps=1e-5)
+        self.ln_1 = LayerNorm(config)
         self.attn = AttentionWithSelfAblation(config, layer_id)
-        self.ln_2 = nn.LayerNorm(config.d_model, eps=1e-5)
+        self.ln_2 = LayerNorm(config)
         self.mlp = MLPWithSelfAblation(config)
 
         self.hook_attn_out = HookPoint()
@@ -87,4 +88,4 @@ class GPTNeoBlockWithSelfAblation(HookedRootModule):
         return outputs
 
     def get_my_device(self):
-        return self.ln_1.weight.device
+        return self.ln_1.w.device
