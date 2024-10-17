@@ -5,25 +5,27 @@ from .mlp import MLPWithSelfAblation
 from .soft_top_k import soft_top_k, hard_top_k_with_soft_gradient
 
 from transformer_lens.hook_points import HookPoint, HookedRootModule
-
+from transformer_lens.components import LayerNorm
 
 class GPTNeoBlockWithSelfAblation(HookedRootModule):
     def __init__(self, config, layer_id):
         super().__init__()
         self.config = config
-        self.ln_1 = nn.LayerNorm(config.hidden_size, eps=1e-5)
+        self.ln_1 = LayerNorm(config)
         self.attn = AttentionWithSelfAblation(config, layer_id)
-        self.ln_2 = nn.LayerNorm(config.hidden_size, eps=1e-5)
+        self.ln_2 = LayerNorm(config)
         self.mlp = MLPWithSelfAblation(config)
-        
-        self.attn_hook = HookPoint()
-        self.mlp_hook = HookPoint()
-        
+
+        self.hook_resid_pre = HookPoint()
+        self.hook_attn_out = HookPoint()
+        self.hook_mlp_out = HookPoint()
+        self.hook_resid_post = HookPoint()
+
         if self.config.has_layer_by_layer_ablation_mask:
             # Ablation heads
-            self.attention_ablation_head = nn.Linear(config.hidden_size, config.hidden_size)
-            self.neuron_ablation_head = nn.Linear(config.hidden_size, config.mlp_hidden_size)
-            
+            self.attention_ablation_head = nn.Linear(config.d_model, config.d_model)
+            self.neuron_ablation_head = nn.Linear(config.d_model, config.d_mlp)
+
             self.attn_ablation_hook = HookPoint()
             self.neuron_ablation_hook = HookPoint()
 
@@ -38,8 +40,8 @@ class GPTNeoBlockWithSelfAblation(HookedRootModule):
         Seems like if you're doing overall model top-K then that's not really compatible with
         having both overall and layer-by-layer ablation scores added together, right?
         """
-        attn_ablation_scores = torch.zeros(x_clean.shape[:-1] + (self.config.hidden_size,), device=self.get_my_device())
-        neuron_ablation_scores = torch.zeros(x_clean.shape[:-1] + (self.config.mlp_hidden_size,), device=self.get_my_device())
+        attn_ablation_scores = torch.zeros(x_clean.shape[:-1] + (self.config.d_model,), device=self.get_my_device())
+        neuron_ablation_scores = torch.zeros(x_clean.shape[:-1] + (self.config.d_mlp,), device=self.get_my_device())
 
         if self.config.has_overall_ablation_mask and not is_preliminary_pass:
             attn_ablation_scores = attn_ablation_scores + overall_attention_ablation_scores
@@ -66,12 +68,16 @@ class GPTNeoBlockWithSelfAblation(HookedRootModule):
         neuron_ablation = top_k_fn(neuron_ablation_scores, self.config.k_neurons, self.config.temperature_neurons, eps=self.config.top_k_epsilon)
 
         # Process x_clean
+        x_clean = self.hook_resid_pre(x_clean)
+
         attn_output_clean = self.attn(self.ln_1(x_clean), self.ln_1(x_clean))
-        attn_output_clean = self.attn_hook(attn_output_clean)
-        
+        attn_output_clean = self.hook_attn_out(attn_output_clean)
+
         x_clean = x_clean + attn_output_clean
         x_clean = x_clean + self.mlp(self.ln_2(x_clean))
-        x_clean = self.mlp_hook(x_clean)
+        x_clean = self.hook_mlp_out(x_clean)
+
+        x_clean = self.hook_resid_post(x_clean)
 
         if not is_preliminary_pass:
             # Process x_ablated with ablations
@@ -88,4 +94,4 @@ class GPTNeoBlockWithSelfAblation(HookedRootModule):
         return outputs
 
     def get_my_device(self):
-        return self.ln_1.weight.device
+        return self.ln_1.w.device

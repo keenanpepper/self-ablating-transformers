@@ -11,8 +11,8 @@ def collect_ablations(model, train_config):
     """
     train_batch_gen = BatchGenerator(train_config.train_file, train_config.block_size, train_config.batch_size, train_config.device)
 
-    attention_ablations = torch.zeros(model.config.num_layers, model.config.hidden_size, device=train_config.device)
-    neuron_ablations = torch.zeros(model.config.num_layers, model.config.mlp_hidden_size, device=train_config.device)
+    attention_ablations = torch.zeros(model.config.num_layers, model.config.d_model, device=train_config.device)
+    neuron_ablations = torch.zeros(model.config.num_layers, model.config.d_mlp, device=train_config.device)
 
     for iteration in tqdm(range(train_config.num_batches)):
         model.eval()
@@ -47,11 +47,11 @@ def collect_activating_texts(model, train_config, n_texts=10, n_context=10, acti
     train_batch_gen = BatchGenerator(train_config.train_file, train_config.block_size, train_config.batch_size, train_config.device)
     device = train_config.device
 
-    attention_activating_texts = torch.zeros(model.config.num_layers, model.config.hidden_size, n_texts, n_context+1, dtype=torch.long, device=device)
-    neuron_activating_texts = torch.zeros(model.config.num_layers, model.config.mlp_hidden_size, n_texts, n_context+1, dtype=torch.long, device=device)
+    attention_activating_texts = torch.zeros(model.config.num_layers, model.config.d_model, n_texts, n_context+1, dtype=torch.long, device=device)
+    neuron_activating_texts = torch.zeros(model.config.num_layers, model.config.d_mlp, n_texts, n_context+1, dtype=torch.long, device=device)
 
-    attention_counts = torch.zeros(model.config.num_layers, model.config.hidden_size, dtype=torch.long, device=device)
-    neuron_counts = torch.zeros(model.config.num_layers, model.config.mlp_hidden_size, dtype=torch.long, device=device)
+    attention_counts = torch.zeros(model.config.num_layers, model.config.d_model, dtype=torch.long, device=device)
+    neuron_counts = torch.zeros(model.config.num_layers, model.config.d_mlp, dtype=torch.long, device=device)
 
     for iteration in tqdm(range(train_config.num_batches)):
         model.eval()

@@ -10,10 +10,10 @@ class NewGELUActivation(nn.Module):
 class MLPWithSelfAblation(HookedRootModule):
     def __init__(self, config):
         super().__init__()
-        self.c_fc = nn.Linear(config.hidden_size, config.mlp_hidden_size)
-        self.c_proj = nn.Linear(config.mlp_hidden_size, config.hidden_size)
+        self.c_fc = nn.Linear(config.d_model, config.d_mlp)
+        self.c_proj = nn.Linear(config.d_mlp, config.d_model)
         self.act = NewGELUActivation()
-        
+
         self.fc_activation_hook = HookPoint()
         self.ablated_fc_activation_hook = HookPoint()
 
