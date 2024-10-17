@@ -16,8 +16,10 @@ class GPTNeoBlockWithSelfAblation(HookedRootModule):
         self.ln_2 = LayerNorm(config)
         self.mlp = MLPWithSelfAblation(config)
 
+        self.hook_resid_pre = HookPoint()
         self.hook_attn_out = HookPoint()
         self.hook_mlp_out = HookPoint()
+        self.hook_resid_post = HookPoint()
 
         if self.config.has_layer_by_layer_ablation_mask:
             # Ablation heads
@@ -66,12 +68,16 @@ class GPTNeoBlockWithSelfAblation(HookedRootModule):
         neuron_ablation = top_k_fn(neuron_ablation_scores, self.config.k_neurons, self.config.temperature_neurons, eps=self.config.top_k_epsilon)
 
         # Process x_clean
+        x_clean = self.hook_resid_pre(x_clean)
+
         attn_output_clean = self.attn(self.ln_1(x_clean), self.ln_1(x_clean))
         attn_output_clean = self.hook_attn_out(attn_output_clean)
-        
+
         x_clean = x_clean + attn_output_clean
         x_clean = x_clean + self.mlp(self.ln_2(x_clean))
         x_clean = self.hook_mlp_out(x_clean)
+
+        x_clean = self.hook_resid_post(x_clean)
 
         if not is_preliminary_pass:
             # Process x_ablated with ablations
