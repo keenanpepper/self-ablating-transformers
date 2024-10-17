@@ -118,7 +118,7 @@ class WandBConfig:
         self.vocab_size = model_config.d_vocab
         self.hidden_size = model_config.d_model
         self.mlp_hidden_size = model_config.d_mlp
-        self.num_layers = model_config.num_layers
+        self.num_layers = model_config.n_layers
         self.num_heads = model_config.num_heads
         self.max_position_embeddings = model_config.n_ctx
         self.window_size = model_config.window_size

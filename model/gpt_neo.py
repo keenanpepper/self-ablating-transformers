@@ -64,7 +64,7 @@ class GPTNeoWithSelfAblation(HookedRootModule):
         overall_attention_ablation_scores, overall_neuron_ablation_scores:
         if using an overall ablation mask this should be the result
         of the preliminary pass (pre-topK relevance scores), otherwise None
-        shapes: (batch_size, block_length, num_layers, [either d_model or d_mlp])
+        shapes: (batch_size, block_length, n_layers, [either d_model or d_mlp])
 
         """
         if self.cfg.has_overall_ablation_mask and not is_preliminary_pass:
