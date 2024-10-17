@@ -8,12 +8,12 @@ class GPTNeoWithSelfAblationConfig:
     """
     def __init__(
         self,
-        vocab_size=50257,
+        d_vocab=50257,
         d_model=128,
         d_mlp=None,
         n_layers=8,
         num_heads=16,
-        max_position_embeddings=2048,
+        n_ctx=2048,
         window_size=256,
         attention_layers=None,
         k_attention=32,
@@ -29,18 +29,20 @@ class GPTNeoWithSelfAblationConfig:
         reconstruction_loss_type="MSE",
         ablation_processing="soft-top-K-version-1",
         eps=1e-5,  # used for LayerNorm,
+        device=None,
     ):
         self.top_k_epsilon = top_k_epsilon
-        self.vocab_size = vocab_size
+        self.d_vocab = d_vocab
         self.d_model = d_model
         self.d_mlp = 4 * self.d_model if d_mlp is None else d_mlp
         self.n_layers = n_layers
         self.num_heads = num_heads
-        self.max_position_embeddings = max_position_embeddings
+        self.n_ctx = n_ctx
         self.window_size = window_size
         self.attention_layers = ["global"] * n_layers if attention_layers is None else attention_layers
         self.eps = eps
         self.dtype = torch.float32 # no provision for other dtypes yet
+        self.device = ("cuda" if torch.cuda.is_available() else "cpu") if device is None else device
 
         # Ablation-specific parameters
         self.k_attention = k_attention
@@ -58,13 +60,8 @@ class GPTNeoWithSelfAblationConfig:
         self.reconstruction_coeff = reconstruction_coeff
         
         # Transformer Lens specific parameters
-        self.hooked_transformer_config = HookedAblatedTransformerConfig(
-            n_layers=n_layers,
-            d_model=d_model,
-            n_ctx=max_position_embeddings,
-            d_head=d_model // num_heads,
-            act_fn="gelu",
-        )
+        self.d_vocab_out = self.d_vocab
+        self.default_prepend_bos = False
 
     def __repr__(self):
         attributes = [f"{key}={repr(value)}" for key, value in vars(self).items()]
@@ -118,12 +115,12 @@ class WandBConfig:
     def __init__(self, model_config, training_config, dataset_name,
                  top_k_level, per_layer_ablation_position):
         # model config stuff
-        self.vocab_size = model_config.vocab_size
+        self.vocab_size = model_config.d_vocab
         self.hidden_size = model_config.d_model
         self.mlp_hidden_size = model_config.d_mlp
         self.num_layers = model_config.num_layers
         self.num_heads = model_config.num_heads
-        self.max_position_embeddings = model_config.max_position_embeddings
+        self.max_position_embeddings = model_config.n_ctx
         self.window_size = model_config.window_size
         self.attention_layers = model_config.attention_layers
         self.loss_coeff_base = model_config.loss_coeff_base

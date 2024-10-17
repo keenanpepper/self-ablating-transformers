@@ -1,11 +1,18 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from .block import GPTNeoBlockWithSelfAblation
+from typing import cast, List, Literal, Optional, Union
+from jaxtyping import Float, Int
+import numpy as np
+from transformers import PreTrainedTokenizerBase
 
 from transformer_lens.hook_points import HookPoint, HookedRootModule
 from transformer_lens.ActivationCache import ActivationCache
 from transformer_lens.components import LayerNorm
+from transformer_lens import utils
+from transformer_lens.utils import USE_DEFAULT_VALUE
+
+from .block import GPTNeoBlockWithSelfAblation
 
 class GPTNeoWithSelfAblation(HookedRootModule):
     def __init__(self, cfg):
@@ -13,12 +20,12 @@ class GPTNeoWithSelfAblation(HookedRootModule):
         assert cfg.has_layer_by_layer_ablation_mask or cfg.has_overall_ablation_mask
         self.cfg = cfg
 
-        self.wte = nn.Embedding(cfg.vocab_size, cfg.d_model)
-        self.wpe = nn.Embedding(cfg.max_position_embeddings, cfg.d_model)
+        self.wte = nn.Embedding(cfg.d_vocab, cfg.d_model)
+        self.wpe = nn.Embedding(cfg.n_ctx, cfg.d_model)
         self.blocks = nn.ModuleList([GPTNeoBlockWithSelfAblation(cfg, i) for i in range(cfg.n_layers)])
         self.ln_final = LayerNorm(cfg)
 
-        self.lm_head = nn.Linear(cfg.d_model, cfg.vocab_size, bias=False)
+        self.lm_head = nn.Linear(cfg.d_model, cfg.d_vocab, bias=False)
 
         # Note that in theory the two ablations types (overall and layer-by-layer
         # CAN be used together (the relevance scores are added up before the soft-top-K.
@@ -179,7 +186,7 @@ class GPTNeoWithSelfAblation(HookedRootModule):
         x = torch.tensor(input_ids, dtype=torch.long, device=device).unsqueeze(0) if isinstance(input_ids, list) else input_ids.to(device)
 
         for _ in range(max_new_tokens):
-            x_crop = x[:, -self.cfg.max_position_embeddings:]
+            x_crop = x[:, -self.cfg.n_ctx:]
 
             with torch.no_grad():
                 outputs = self(x_crop)
@@ -209,3 +216,254 @@ class GPTNeoWithSelfAblation(HookedRootModule):
             return out, cache
         else:
             return out, cache_dict
+
+    def set_tokenizer(
+        self,
+        tokenizer,
+        default_padding_side="right",
+    ):
+        """Set the tokenizer to use for this model.
+
+        Args:
+            tokenizer (PreTrainedTokenizer): a pretrained HuggingFace tokenizer.
+            default_padding_side (str): "right" or "left", which side to pad on.
+
+        """
+        assert isinstance(
+            tokenizer, PreTrainedTokenizerBase
+        ), f"{type(tokenizer)} is not a supported tokenizer, please use PreTrainedTokenizer or PreTrainedTokenizerFast"
+
+        assert default_padding_side in [
+            "right",
+            "left",
+        ], f"padding_side must be 'right' or 'left', got {default_padding_side}"
+
+        # Use a tokenizer that is initialized with add_bos_token=True as the default tokenizer.
+        # Such a tokenizer should be set as the default tokenizer because the tokenization of some
+        # tokenizers like LlamaTokenizer are different when bos token is automatically/manually
+        # prepended, and add_bos_token cannot be dynamically controlled after initialization
+        # (https://github.com/huggingface/transformers/issues/25886).
+        tokenizer_with_bos = utils.get_tokenizer_with_bos(tokenizer)
+        self.tokenizer = tokenizer_with_bos
+        assert self.tokenizer is not None  # keep mypy happy
+        self.tokenizer.padding_side = default_padding_side
+
+        # Some tokenizers doesn't automatically prepend the BOS token even when they are initialized
+        # with add_bos_token=True. Therefore, we need this information to dynamically control prepend_bos.
+        self.cfg.tokenizer_prepends_bos = len(self.tokenizer.encode("")) > 0
+
+        if self.tokenizer.eos_token is None:
+            self.tokenizer.eos_token = "<|endoftext|>"
+        if self.tokenizer.pad_token is None:
+            self.tokenizer.pad_token = self.tokenizer.eos_token
+        if self.tokenizer.bos_token is None:
+            self.tokenizer.bos_token = self.tokenizer.eos_token
+
+        # Infer vocab size from tokenizer
+        if self.cfg.d_vocab == -1:
+            self.cfg.d_vocab = max(self.tokenizer.vocab.values()) + 1
+        if self.cfg.d_vocab_out == -1:
+            self.cfg.d_vocab_out = self.cfg.d_vocab
+
+    def to_tokens(
+        self,
+        input: Union[str, List[str]],
+        prepend_bos: Optional[Union[bool, None]] = USE_DEFAULT_VALUE,
+        padding_side: Optional[Union[Literal["left", "right"], None]] = USE_DEFAULT_VALUE,
+        move_to_device: bool = True,
+        truncate: bool = True,
+    ) -> Int[torch.Tensor, "batch pos"]:
+        """Converts a string to a tensor of tokens.
+
+        If prepend_bos is True, prepends the BOS token to the input - this is recommended when
+        creating a sequence of tokens to be input to a model.
+
+        Gotcha: prepend_bos prepends a beginning of string token. This is a recommended default when
+        inputting a prompt to the model as the first token is often treated weirdly, but should only
+        be done at the START of the prompt. Make sure to turn it off if you're looking at the
+        tokenization of part of the prompt! (Note: some models eg GPT-2 were not trained with a BOS
+        token, others (OPT and my models) were)
+
+        Gotcha2: Tokenization of a string depends on whether there is a preceding space and whether
+        the first letter is capitalized. It's easy to shoot yourself in the foot here if you're not
+        careful!
+
+        Args:
+            input (Union[str, List[str]]): The input to tokenize.
+            prepend_bos (bool, optional): Overrides self.cfg.default_prepend_bos. Whether to prepend
+                the BOS token to the input (only applies when input is a string). Defaults to None,
+                implying usage of self.cfg.default_prepend_bos which is set to True unless specified
+                otherwise. Pass True or False to locally override the default.
+            padding_side (Union[Literal["left", "right"], None], optional): Overrides
+                self.tokenizer.padding_side. Specifies which side to pad when tokenizing
+                multiple strings of different lengths.
+            move_to_device (bool): Whether to move the output tensor of tokens to the device the
+                model lives on. Defaults to True truncate (bool): If the output tokens are too long,
+                whether to truncate the output tokens to the model's max context window. Does nothing
+                for shorter inputs. Defaults to True.
+        """
+        with utils.LocallyOverridenDefaults(
+            self, prepend_bos=prepend_bos, padding_side=padding_side
+        ):
+            assert self.tokenizer is not None, "Cannot use to_tokens without a tokenizer"
+            assert (
+                self.cfg.tokenizer_prepends_bos is not None
+            ), "Set the tokenizer for the model by calling set_tokenizer"
+
+            if self.cfg.default_prepend_bos and not self.cfg.tokenizer_prepends_bos:
+                # We want to prepend bos but the tokenizer doesn't automatically do it, so we add it manually
+                input = utils.get_input_with_manually_prepended_bos(self.tokenizer, input)
+
+            tokens = self.tokenizer(
+                input,
+                return_tensors="pt",
+                padding=False, # changed from HookedTransformer
+                truncation=truncate,
+                max_length=self.cfg.n_ctx if truncate else None,
+            )["input_ids"]
+
+            if not self.cfg.default_prepend_bos and self.cfg.tokenizer_prepends_bos:
+                # We don't want to prepend bos but the tokenizer does it automatically, so we remove it manually
+                tokens = utils.get_tokens_with_bos_removed(self.tokenizer, tokens)
+
+            if move_to_device:
+                tokens = tokens.to(self.cfg.device)
+            return tokens
+
+    def to_string(
+        self,
+        tokens: Union[
+            List[int],
+            Int[torch.Tensor, ""],
+            Int[torch.Tensor, "batch pos"],
+            Int[torch.Tensor, "pos"],
+            np.ndarray,
+            List[Int[torch.Tensor, "pos"]],
+        ],
+    ) -> Union[str, List[str]]:
+        """Tokens to String(s).
+
+        Converts a tensor of tokens to a string (if rank 1) or a list of strings (if rank 2).
+
+        Accepts lists of tokens and numpy arrays as inputs too (and converts to tensors internally)
+        """
+        assert self.tokenizer is not None, "Cannot use to_string without a tokenizer"
+
+        if not isinstance(tokens, torch.Tensor):
+            # We allow lists to be input
+            tokens = torch.tensor(tokens)
+
+        # I'm not sure what exactly clean_up_tokenization_spaces does, but if
+        # it's set, then tokenization is no longer invertible, and some tokens
+        # with a bunch of whitespace get collapsed together
+        if len(tokens.shape) == 2:
+            return self.tokenizer.batch_decode(tokens, clean_up_tokenization_spaces=False)
+        elif len(tokens.shape) <= 1:
+            return self.tokenizer.decode(tokens, clean_up_tokenization_spaces=False)
+        else:
+            raise ValueError(f"Invalid shape passed in: {tokens.shape}")
+
+    def to_str_tokens(
+        self,
+        input: Union[
+            str,
+            Int[torch.Tensor, "pos"],
+            Int[torch.Tensor, "1 pos"],
+            Int[np.ndarray, "pos"],
+            Int[np.ndarray, "1 pos"],
+            list,
+        ],
+        prepend_bos: Optional[Union[bool, None]] = USE_DEFAULT_VALUE,
+        padding_side: Optional[Union[Literal["left", "right"], None]] = USE_DEFAULT_VALUE,
+    ) -> Union[List[str], List[List[str]]]:
+        """Map text, a list of text or tokens to a list of tokens as strings.
+
+        Gotcha: prepend_bos prepends a beginning of string token. This is a recommended default when
+        inputting a prompt to the model as the first token is often treated weirdly, but should only
+        be done at the START of the prompt. If prepend_bos=None is passed, it implies the usage of
+        self.cfg.default_prepend_bos which is set to True unless specified otherwise. Therefore,
+        make sure to locally turn it off by passing prepend_bos=False if you're looking at the
+        tokenization of part of the prompt! (Note: some models eg GPT-2 were not trained with a BOS
+        token, others (OPT and my models) were)
+
+        Gotcha2: Tokenization of a string depends on whether there is a preceding space and whether
+        the first letter is capitalized. It's easy to shoot yourself in the foot here if you're not
+        careful!
+
+        Gotcha3: If passing a string that exceeds the model's context length (model.cfg.n_ctx), it
+        will be truncated.
+
+        Args:
+            input (Union[str, list, torch.Tensor]): The input - either a string or a tensor of
+                tokens. If tokens, should be a tensor of shape [pos] or [1, pos].
+            prepend_bos (bool, optional): Overrides self.cfg.default_prepend_bos. Whether to prepend
+                the BOS token to the input (only applies when input is a string). Defaults to None,
+                implying usage of self.cfg.default_prepend_bos which is set to True unless specified
+                otherwise. Pass True or False to locally override the default.
+            padding_side (Union[Literal["left", "right"], None], optional): Overrides
+                self.tokenizer.padding_side. Specifies which side to pad when tokenizing multiple
+                strings of different lengths.
+
+        Returns:
+            str_tokens: List of individual tokens as strings
+        """
+        with utils.LocallyOverridenDefaults(
+            self, prepend_bos=prepend_bos, padding_side=padding_side
+        ):
+            assert self.tokenizer is not None  # keep mypy happy
+            tokens: Union[np.ndarray, torch.Tensor]
+            if isinstance(input, list):
+                return list(
+                    map(
+                        lambda tokens: self.to_str_tokens(tokens, prepend_bos, padding_side),
+                        input,
+                    )
+                )  # type: ignore
+            elif isinstance(input, str):
+                tokens = self.to_tokens(input, prepend_bos=prepend_bos, padding_side=padding_side)[
+                    0
+                ]
+                # Gemma tokenizer expects a batch dimension
+                if "gemma" in self.tokenizer.name_or_path and tokens.ndim == 1:
+                    tokens = tokens.unsqueeze(1)
+            elif isinstance(input, torch.Tensor):
+                tokens = input
+                tokens = tokens.squeeze()  # Get rid of a trivial batch dimension
+                if tokens.dim() == 0:
+                    # Don't pass dimensionless tensor
+                    tokens = tokens.unsqueeze(0)
+                assert (
+                    tokens.dim() == 1
+                ), f"Invalid tokens input to to_str_tokens, has shape: {tokens.shape}"
+            elif isinstance(input, np.ndarray):
+                tokens = input
+                tokens = tokens.squeeze()  # Get rid of a trivial batch dimension
+                if tokens.ndim == 0:
+                    # Don't pass dimensionless tensor
+                    tokens = np.expand_dims(tokens, axis=0)
+                assert (
+                    tokens.ndim == 1
+                ), f"Invalid tokens input to to_str_tokens, has shape: {tokens.shape}"
+            else:
+                raise ValueError(f"Invalid input type to to_str_tokens: {type(input)}")
+            str_tokens = self.tokenizer.batch_decode(tokens, clean_up_tokenization_spaces=False)
+            return str_tokens
+
+    def to_single_token(self, string):
+        """Map a string that makes up a single token to the id for that token.
+
+        Raises an error for strings that are not a single token! If uncertain use to_tokens.
+        """
+
+        # We use the to_tokens method, do not append a BOS token
+        token = self.to_tokens(string, prepend_bos=False).squeeze()
+        # If token shape is non-empty, raise error
+        assert not token.shape, f"Input string: {string} is not a single token!"
+        return token.item()
+
+    def to_single_str_token(self, int_token: int) -> str:
+        # Gives the single token corresponding to an int in string form
+        assert isinstance(int_token, int)
+        token = self.to_str_tokens(torch.tensor([int_token]))
+        assert len(token) == 1
+        return cast(str, token[0])
