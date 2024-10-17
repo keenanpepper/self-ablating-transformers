@@ -1,6 +1,8 @@
 import torch
 import torch.nn as nn
 import math
+from jaxtyping import Float
+
 from transformer_lens.hook_points import HookPoint, HookedRootModule
 
 class NewGELUActivation(nn.Module):
@@ -14,7 +16,7 @@ class MLPWithSelfAblation(HookedRootModule):
         self.c_proj = nn.Linear(config.d_mlp, config.d_model)
         self.act = NewGELUActivation()
 
-        self.fc_activation_hook = HookPoint()
+        self.hook_post = HookPoint()
         self.ablated_fc_activation_hook = HookPoint()
 
     def forward(self, x, ablation_mask=None):
@@ -22,7 +24,7 @@ class MLPWithSelfAblation(HookedRootModule):
         hidden_states = self.act(hidden_states)
         
         # Hook after activation and fully connected layer
-        hidden_states = self.fc_activation_hook(hidden_states)
+        hidden_states = self.hook_post(hidden_states)
 
         if ablation_mask is not None:
             hidden_states = hidden_states * ablation_mask
@@ -31,3 +33,11 @@ class MLPWithSelfAblation(HookedRootModule):
         hidden_states = self.ablated_fc_activation_hook(hidden_states)
 
         return self.c_proj(hidden_states)
+
+    @property
+    def W_out(self) -> Float[torch.Tensor, "d_mlp d_model"]:
+        return self.c_proj.weight.transpose(0,1)
+
+    @property
+    def b_out(self) -> Float[torch.Tensor, "d_model"]:
+        return self.c_proj.bias

@@ -12,7 +12,7 @@ class GPTNeoWithSelfAblationConfig:
         d_model=128,
         d_mlp=None,
         n_layers=8,
-        num_heads=16,
+        n_heads=16,
         n_ctx=2048,
         window_size=256,
         attention_layers=None,
@@ -36,7 +36,7 @@ class GPTNeoWithSelfAblationConfig:
         self.d_model = d_model
         self.d_mlp = 4 * self.d_model if d_mlp is None else d_mlp
         self.n_layers = n_layers
-        self.num_heads = num_heads
+        self.n_heads = n_heads
         self.n_ctx = n_ctx
         self.window_size = window_size
         self.attention_layers = ["global"] * n_layers if attention_layers is None else attention_layers
@@ -62,6 +62,9 @@ class GPTNeoWithSelfAblationConfig:
         # Transformer Lens specific parameters
         self.d_vocab_out = self.d_vocab
         self.default_prepend_bos = False
+        self.attn_only = False
+        self.normalization_type = "LN"
+        self.n_key_value_heads = None
 
     def __repr__(self):
         attributes = [f"{key}={repr(value)}" for key, value in vars(self).items()]
@@ -119,7 +122,7 @@ class WandBConfig:
         self.hidden_size = model_config.d_model
         self.mlp_hidden_size = model_config.d_mlp
         self.num_layers = model_config.n_layers
-        self.num_heads = model_config.num_heads
+        self.num_heads = model_config.n_heads
         self.max_position_embeddings = model_config.n_ctx
         self.window_size = model_config.window_size
         self.attention_layers = model_config.attention_layers
