@@ -1,5 +1,7 @@
 import einops
 
+from transformer_lens import HookedTransformer, HookedTransformerConfig
+
 def our_state_dict_to_hooked_transformer(state_dict, hooked_transformer_config):
     """
     Translates a state_dict from a model used in this project to a state_dict
@@ -50,3 +52,26 @@ def our_state_dict_to_hooked_transformer(state_dict, hooked_transformer_config):
             new_state_dict[new_key] = value
 
     return new_state_dict
+
+def get_hooked_transformer_with_config(our_config, tokenizer_name="gpt2"):
+    their_config = HookedTransformerConfig(n_layers=our_config.num_layers,
+                                           d_model=our_config.hidden_size,
+                                           n_ctx=our_config.max_position_embeddings,
+                                           d_head=our_config.hidden_size // our_config.num_heads,
+                                           tokenizer_name=tokenizer_name,
+                                           act_fn="gelu_new",
+                                           use_attn_scale=False,
+                                           default_prepend_bos=False)
+    return HookedTransformer(their_config)
+
+def convert_model_to_hooked_transformer(model):
+    """
+    Converts a GPTNeoWithSelfAblation to a HookedTransformer
+
+    Note that because the default for HookedTransformer is to center the unembed,
+    the logits will not be the same but shifted by a constant (which varies per token).
+    See center_unembed in HookedTransformer.py upstream.
+    """
+    ht = get_hooked_transformer_with_config(model.config)
+    ht.load_and_process_state_dict(our_state_dict_to_hooked_transformer(model.state_dict(), ht.cfg))
+    return ht
