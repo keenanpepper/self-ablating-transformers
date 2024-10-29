@@ -28,6 +28,7 @@ class GPTNeoWithSelfAblationConfig:
         has_overall_ablation_mask=False,
         reconstruction_loss_type="MSE",
         ablation_processing="soft-top-K-version-1",
+        device=None,
     ):
         self.top_k_epsilon = top_k_epsilon
         self.vocab_size = vocab_size
@@ -53,15 +54,10 @@ class GPTNeoWithSelfAblationConfig:
         self.loss_coeff_base = loss_coeff_base
         self.loss_coeff_ablated = loss_coeff_ablated
         self.reconstruction_coeff = reconstruction_coeff
-        
-        # Transformer Lens specific parameters
-        self.hooked_transformer_config = HookedAblatedTransformerConfing(
-            n_layers=num_layers,
-            d_model=hidden_size,
-            n_ctx=max_position_embeddings,
-            d_head=hidden_size // num_heads,
-            act_fn="gelu",
-        )
+
+        self.device = device
+        if self.device == None:
+            self.device = "cuda" if torch.cuda.is_available() else "cpu"
 
     def __repr__(self):
         attributes = [f"{key}={repr(value)}" for key, value in vars(self).items()]

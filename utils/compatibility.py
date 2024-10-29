@@ -61,7 +61,8 @@ def get_hooked_transformer_with_config(our_config, tokenizer_name="gpt2"):
                                            tokenizer_name=tokenizer_name,
                                            act_fn="gelu_new",
                                            use_attn_scale=False,
-                                           default_prepend_bos=False)
+                                           default_prepend_bos=False,
+                                           device=our_config.device)
     return HookedTransformer(their_config)
 
 def convert_model_to_hooked_transformer(model):

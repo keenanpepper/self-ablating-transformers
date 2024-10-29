@@ -36,6 +36,9 @@ class GPTNeoWithSelfAblation(HookedRootModule):
         # Creates hook dictionaries for transformer lens
         self.setup()
 
+        # Move to config device
+        self.to(config.device)
+
     def forward(self, input_ids, targets=None, is_preliminary_pass=False,
                 overall_attention_ablation_scores=None,
                 overall_neuron_ablation_scores=None):
