@@ -1,6 +1,11 @@
+import torch
 import einops
+from jaxtyping import Float
+from functools import partial
 
 from transformer_lens import HookedTransformer, HookedTransformerConfig
+from transformer_lens.hook_points import HookPoint
+import transformer_lens.utils as utils
 
 def our_state_dict_to_hooked_transformer(state_dict, hooked_transformer_config):
     """
@@ -76,3 +81,67 @@ def convert_model_to_hooked_transformer(model):
     ht = get_hooked_transformer_with_config(model.config)
     ht.load_and_process_state_dict(our_state_dict_to_hooked_transformer(model.state_dict(), ht.cfg))
     return ht
+
+def ablation_hook(
+    component_out: Float[torch.Tensor, "batch pos d_component"],
+    hook: HookPoint,
+    ablation_mask: Float[torch.Tensor, "batch layer d_component"],
+    pos: int,
+) -> Float[torch.Tensor, "batch pos d_component"]:
+    """
+    works for both attention ablations and neuron ablations
+
+    ablation_mask is a float tensor that for a binary (hard) mask is always
+    0 for ablated indices and 1 for unablated indices
+
+    generally it wouldn't make sense to just ablate everything at all sequence
+    positions in one forward pass, that's why the "pos" parameter is there
+    """
+    layer = hook.layer()
+    component_out[:,pos,:] = component_out[:,pos,:] * ablation_mask[:,layer,:]
+    return component_out
+
+def get_attn_ablation_for_tl(model_output, pos, model_config):
+    n_heads = model_config.num_heads
+    x = model_output["attention_ablations"][:,pos,:,:]
+    return einops.rearrange(x, "batch layer (head dim) -> batch layer head dim", head=n_heads)
+
+def get_mlp_ablation_for_tl(model_output, pos):
+    return model_output["neuron_ablations"][:,pos,:,:]
+
+def get_attn_ablation_hooks_for_tl(model_output, pos, model_config):
+    abl = get_attn_ablation_for_tl(model_output, pos, model_config)
+    ret = []
+    for layer in range(model_config.num_layers):
+        ret.append((utils.get_act_name("z", layer), partial(ablation_hook, pos=pos, ablation_mask=abl)))
+    return ret
+
+def get_mlp_ablation_hooks_for_tl(model_output, pos, model_config):
+    abl = get_mlp_ablation_for_tl(model_output, pos)
+    ret = []
+    for layer in range(model_config.num_layers):
+        ret.append((utils.get_act_name("mlp_post", layer), partial(ablation_hook, pos=pos, ablation_mask=abl)))
+    return ret
+
+def get_ablation_hooks_for_tl(model_output, pos, model_config):
+    """
+    Returns a list of hook functions suitable for HookedTransformer
+    such that the result of a forward pass thru that HookedTransformer
+    with those hooks is the same as the "logits_ablated" result from
+    GPTNeoWithSelfAblation.
+
+    Usage:
+
+    pos = -1 # for example
+
+    model_output = model_with_ablation(input)
+
+    all_hooks = get_ablation_hooks_for_tl(model_output, pos, model_with_ablation.config)
+
+    logits = ht.run_with_hooks(input, return_type="logits", fwd_hooks = all_hooks)
+
+    After running that now "logits" will be the same as "logits_clean" for all the previous positions,
+    but it will be the same as "logits_ablated" for the position "pos",
+    because the TransformerLens hooks did the exact same ablations as our model code does.
+    """
+    return get_attn_ablation_hooks_for_tl(model_output, pos, model_config) + get_mlp_ablation_hooks_for_tl(model_output, pos, model_config)
