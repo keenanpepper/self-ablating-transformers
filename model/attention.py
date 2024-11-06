@@ -36,13 +36,18 @@ class AttentionWithSelfAblation(HookedRootModule):
         q = self.attention.q_proj(x).view(batch_size, seq_len, self.num_heads, self.head_dim).transpose(1, 2)
         k = self.attention.k_proj(x_clean).view(batch_size, seq_len, self.num_heads, self.head_dim).transpose(1, 2)
         v = self.attention.v_proj(x_clean).view(batch_size, seq_len, self.num_heads, self.head_dim).transpose(1, 2)
-        
+        k_ablated = self.attention.k_proj(x).view(batch_size, seq_len, self.num_heads, self.head_dim).transpose(1, 2)
+        v_ablated = self.attention.v_proj(x).view(batch_size, seq_len, self.num_heads, self.head_dim).transpose(1, 2)
+
         # Apply hooks
         q = self.q_hook(q)
         k = self.k_hook(k)
         v = self.v_hook(v)
 
         scores = torch.matmul(q, k.transpose(-1, -2))
+        scores_ablated = torch.matmul(q, k_ablated.transpose(-1, -2))
+        diag_mask = torch.eye(seq_len, device=self.config.device, dtype=torch.bool).unsqueeze(0).unsqueeze(0).expand((batch_size, self.num_heads, seq_len, seq_len))
+        scores = torch.where(diag_mask, scores_ablated, scores)
 
         if self.is_local:
             local_mask = torch.ones(seq_len, seq_len, dtype=torch.bool, device=x.device)
@@ -55,15 +60,17 @@ class AttentionWithSelfAblation(HookedRootModule):
         attn = F.softmax(scores, dim=-1)
         attn = self.attn_hook(attn)
         context = torch.matmul(attn, v)
+        context_correction = torch.diagonal(attn, dim1=-1, dim2=-2).unsqueeze(-1) * (v_ablated - v)
+        context = context + context_correction
 
         context = context.transpose(1, 2).contiguous().view(batch_size, seq_len, self.hidden_size)
-        
+
         context = self.context_hook(context)
 
         if ablation_mask is not None:
             assert context.shape == ablation_mask.shape, f"context has shape {context.shape} while ablation mask has shape {ablation_mask.shape}"
             context = context * ablation_mask
-        
+
         self.ablated_context_hook(context)
 
         return self.attention.out_proj(context)

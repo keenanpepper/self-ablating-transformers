@@ -68,16 +68,16 @@ class GPTNeoBlockWithSelfAblation(HookedRootModule):
         # Process x_clean
         attn_output_clean = self.attn(self.ln_1(x_clean), self.ln_1(x_clean))
         attn_output_clean = self.attn_hook(attn_output_clean)
-        
-        x_clean = x_clean + attn_output_clean
-        x_clean = x_clean + self.mlp(self.ln_2(x_clean))
-        x_clean = self.mlp_hook(x_clean)
 
         if not is_preliminary_pass:
             # Process x_ablated with ablations
             attn_output_ablated = self.attn(self.ln_1(x_ablated), self.ln_1(x_clean), attn_ablation)
             x_ablated = x_ablated + attn_output_ablated
             x_ablated = x_ablated + self.mlp(self.ln_2(x_ablated), neuron_ablation)
+
+        x_clean = x_clean + attn_output_clean
+        x_clean = x_clean + self.mlp(self.ln_2(x_clean))
+        x_clean = self.mlp_hook(x_clean)
 
         outputs = dict()
         outputs["x_ablated"] = None if is_preliminary_pass else x_ablated
