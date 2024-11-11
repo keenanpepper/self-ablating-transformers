@@ -168,3 +168,4 @@ explore.ipynb
 .env
 *.out
 wandb/
+model_weights/
