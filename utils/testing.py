@@ -6,6 +6,12 @@ import torch
 from model.gpt_neo import GPTNeoWithSelfAblation
 from model.config import GPTNeoWithSelfAblationConfig
 
+from auto_circuit.utils.graph_utils import patchable_model
+from utils.compatibility import convert_model_to_hooked_transformer
+
+from dotenv import load_dotenv
+load_dotenv()
+
 def load_our_model(model_path, device, use_overall_ablation_mask=True, use_layer_by_layer_ablation_mask=False, eval_mode=True):
     model_specific_config = {
         'hidden_size': 128,
@@ -24,6 +30,22 @@ def load_our_model(model_path, device, use_overall_ablation_mask=True, use_layer
         model.eval()
     
     return model
+
+def prepare_model_acdc(model, device):
+    hooked_model = convert_model_to_hooked_transformer(model)
+
+    # Requirements mentioned in load_tl_model
+    hooked_model.cfg.use_attn_result = True
+    hooked_model.cfg.use_attn_in = True
+    hooked_model.cfg.use_split_qkv_input = True
+    hooked_model.cfg.use_hook_mlp_in = True
+    hooked_model.eval()
+    for param in hooked_model.parameters():
+        param.requires_grad = False
+        
+    patched_model = patchable_model(hooked_model, factorized=True, slice_output="last_seq", separate_qkv=True, device=device)
+        
+    return patched_model
 
 def access_wandb_runs(entity=None, 
                       project="gpt-neo-self-ablation", 
@@ -44,6 +66,10 @@ def access_wandb_runs(entity=None,
     
     # Get the entity from the environment variable if not provided
     if entity is None:
+        
+        if os.getenv("WANDB_ENTITY") is None:
+            raise ValueError("Please provide an entity or set the WANDB_ENTITY environment variable. This is your wandb username or team name")
+        
         entity = os.getenv("WANDB_ENTITY")
     
     # Default filters
@@ -53,7 +79,7 @@ def access_wandb_runs(entity=None,
                 '$gte': '2024-11-06T00:00:00Z'    
             },
         }
-        
+        12
         filters = {**filters, **time_filter}
     
     # Fetch runs from the specified project
