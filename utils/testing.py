@@ -7,7 +7,7 @@ from model.gpt_neo import GPTNeoWithSelfAblation
 from model.config import GPTNeoWithSelfAblationConfig
 
 from auto_circuit.utils.graph_utils import patchable_model
-from utils.compatibility import convert_model_to_hooked_transformer
+from utils.compatibility import convert_model_to_hooked_transformer, our_state_dict_to_hooked_transformer, get_hooked_transformer_with_config
 
 from dotenv import load_dotenv
 load_dotenv()
@@ -24,7 +24,10 @@ def load_our_model(model_path, device, use_overall_ablation_mask=True, use_layer
 
     model_config = GPTNeoWithSelfAblationConfig(**model_specific_config)
     model = GPTNeoWithSelfAblation(model_config).to(device)
-    model.load_state_dict(torch.load(model_path, map_location=device))
+    
+    # Get state dict
+    state_dict = torch.load(model_path, map_location=device)    
+    model.load_state_dict(state_dict)
     
     if eval_mode:
         model.eval()
@@ -74,13 +77,13 @@ def access_wandb_runs(entity=None,
     
     # Default filters
     if filters is not None:
-        time_filter = {
+        additional_filters = {
             'created_at' : {
                 '$gte': '2024-11-06T00:00:00Z'    
             },
+            'state': 'finished'
         }
-        12
-        filters = {**filters, **time_filter}
+        filters = {**filters, **additional_filters}
     
     # Fetch runs from the specified project
     runs = api.runs(
@@ -121,6 +124,10 @@ def download_models(wandb_runs, download_dir):
     """
     
     for run in wandb_runs:
+        
+        if run.state != "finished":
+            print(f"Skipping {run.name} as it is not finished")
+            continue
         
         model_folder = f"{download_dir}/{run.name}"
         
