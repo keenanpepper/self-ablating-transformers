@@ -48,7 +48,7 @@ def load_model(model_path: str, device: str = 'cuda', config_dir: str = 'configs
             attention_layers=config_dict.get('attention_layers', ['global'] * config_dict['num_layers']),
             model_type='base'
         )
-        model = BaseGPTNeo(config)  # Now accepts ModelConfig directly
+        model = BaseGPTNeo(config)
     else:
         # Ablation model case
         config = GPTNeoWithSelfAblationConfig(
@@ -87,14 +87,14 @@ def load_model(model_path: str, device: str = 'cuda', config_dir: str = 'configs
         model.eval()
         
         print(f"Model loaded successfully from {model_path}")
-        if ablation_type is None:
-            print(f"Model type: base")
-        else:
-            print(f"Model type: ablated ({ablation_type})")
+        print(f"Model type: {'base' if ablation_type is None else f'ablated ({ablation_type})'}")
         print(f"Number of parameters: {sum(p.numel() for p in model.parameters())}")
+        print(f"Device: {device}")
         
         return model, config
         
     except Exception as e:
         print(f"Error loading model: {str(e)}")
+        import traceback
+        traceback.print_exc()
         raise

@@ -478,7 +478,6 @@ def fast_measure_importance_ablated(
 
     return tokens_and_importances, initial_max, important_tokens, tokens_and_activations, initial_argmax
 
-
 def fast_prune_ablated(
     analyzer,
     layer: int,
@@ -503,9 +502,6 @@ def fast_prune_ablated(
         print(f"Pivot index: {pivot_index}")
         print(f"Original activation: {original_activation}")
 
-        # Convert to hooked transformer
-        ht_model = convert_model_to_hooked_transformer(analyzer.model)
-
         # Initial setup
         tokens = analyzer.to_tokens(text_input, prepend_bos=True)
         str_tokens = analyzer.to_str_tokens(text_input, prepend_bos=True)
@@ -514,6 +510,17 @@ def fast_prune_ablated(
             print(f"Truncating from {len(tokens[0])} to {max_length}")
             tokens = tokens[0, :max_length].unsqueeze(0)
             str_tokens = str_tokens[:max_length]
+
+        # Convert model to HookedTransformer with device handling
+        device = next(analyzer.model.parameters()).device
+        analyzer.model.config.device = device
+        try:
+            ht_model = convert_model_to_hooked_transformer(analyzer.model)
+            delattr(analyzer.model.config, 'device')
+        except Exception as e:
+            if hasattr(analyzer.model.config, 'device'):
+                delattr(analyzer.model.config, 'device')
+            raise e
 
         # Get and analyze initial activations
         try:
@@ -530,7 +537,7 @@ def fast_prune_ablated(
             with torch.no_grad():
                 with ht_model.hooks(fwd_hooks=ablation_hooks):
                     _, cache = ht_model.run_with_cache(tokens)
-                    
+            
             activations = cache[f'blocks.{layer}.mlp.hook_post'][0, :, neuron]
             
             print("\n=== Activation Analysis ===")
@@ -620,7 +627,7 @@ def fast_prune_ablated(
             print(f"ERROR in sequence generation: {str(e)}")
             raise
 
-        # Batch processing with HookedTransformer
+        # Batch processing
         try:
             best_sequence = None
             best_activation = float('-inf')
@@ -635,7 +642,7 @@ def fast_prune_ablated(
                 # Convert batch to tokens
                 batch_tokens = [analyzer.to_tokens(text, prepend_bos=True) for text in batch_texts]
                 max_len = max(len(tokens[0]) for tokens in batch_tokens)
-                padded_batch = torch.zeros((len(batch_tokens), max_len), dtype=torch.long, device=analyzer.device)
+                padded_batch = torch.zeros((len(batch_tokens), max_len), dtype=torch.long, device=device)
                 
                 for j, tokens in enumerate(batch_tokens):
                     padded_batch[j, :len(tokens[0])] = tokens[0]

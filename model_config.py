@@ -82,3 +82,62 @@ def save_config(config: ModelConfig, save_path: Union[str, Path]):
     
     with open(save_path, 'w') as f:
         yaml.dump(config.to_dict(), f, default_flow_style=False)
+
+
+@dataclass
+class GPTNeoWithSelfAblationConfig:
+    """
+    All the hyperparameters of the model itself
+    """
+    def __init__(
+        self,
+        vocab_size=50257,
+        hidden_size=64,
+        mlp_hidden_size=None,
+        num_layers=8,
+        num_heads=16,
+        max_position_embeddings=2048,
+        window_size=256,
+        attention_layers=None,
+        k_attention=32,
+        k_neurons=32,
+        temperature_attention=0.1,
+        temperature_neurons=0.1,
+        loss_coeff_base=1.0,
+        loss_coeff_ablated=0.1,
+        reconstruction_coeff=0.1,
+        top_k_epsilon=1e-12,
+        has_layer_by_layer_ablation_mask=True,
+        has_overall_ablation_mask=False,
+        reconstruction_loss_type="MSE",
+        device=None  # Add device parameter
+    ):
+        self.device = 'cuda' if device is None else device  # Set default device
+        self.top_k_epsilon = top_k_epsilon
+        self.vocab_size = vocab_size
+        self.hidden_size = hidden_size
+        self.mlp_hidden_size = 4 * self.hidden_size if mlp_hidden_size is None else mlp_hidden_size
+        self.num_layers = num_layers
+        self.num_heads = num_heads
+        self.max_position_embeddings = max_position_embeddings
+        self.window_size = window_size
+        self.attention_layers = ["global"] * num_layers if attention_layers is None else attention_layers
+
+        # Ablation-specific parameters
+        self.k_attention = k_attention
+        self.k_neurons = k_neurons
+        self.temperature_attention = temperature_attention
+        self.temperature_neurons = temperature_neurons
+        self.has_layer_by_layer_ablation_mask = has_layer_by_layer_ablation_mask
+        self.has_overall_ablation_mask = has_overall_ablation_mask
+        self.reconstruction_loss_type = reconstruction_loss_type
+
+        # Loss calculation parameters
+        self.loss_coeff_base = loss_coeff_base
+        self.loss_coeff_ablated = loss_coeff_ablated
+        self.reconstruction_coeff = reconstruction_coeff
+
+    def to(self, device):
+        """Add method to change device"""
+        self.device = device
+        return self

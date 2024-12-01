@@ -8,7 +8,7 @@ from transformer_lens.hook_points import HookPoint, HookedRootModule
 class GPTNeoWithSelfAblation(HookedRootModule):
     def __init__(self, config):
         super().__init__()
-        assert config.has_layer_by_layer_ablation_mask or config.has_overall_ablation_mask
+        #assert config.has_layer_by_layer_ablation_mask or config.has_overall_ablation_mask
         self.config = config
         self.transformer = nn.ModuleDict(dict(
             wte = nn.Embedding(config.vocab_size, config.hidden_size),
@@ -35,6 +35,9 @@ class GPTNeoWithSelfAblation(HookedRootModule):
         
         # Creates hook dictionaries for transformer lens
         self.setup()
+
+        # Move to config device
+        self.to(config.device)
 
     def forward(self, input_ids, targets=None, is_preliminary_pass=False,
                 overall_attention_ablation_scores=None,
