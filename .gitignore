@@ -12,3 +12,4 @@ share/
 share/**share/
 share/*
 **/share/
+utils/__pycache__/*

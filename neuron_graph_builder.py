@@ -22,7 +22,7 @@ class ProcessedExample:
 
 class NeuronAnalyzer:
     def __init__(self, model, device='cuda'):
-        """Initialize with model detection"""
+        """Initialize with model detection and appropriate setup"""
         print("Initializing NeuronAnalyzer...")
         self.model = model
         self.device = device
@@ -46,8 +46,10 @@ class NeuronAnalyzer:
                 print(f"Warning: HookedTransformer initialization failed: {str(e)}")
                 print("Will fall back to direct model usage where possible")
                 self.ht_model = None
+        else:
+            self.ht_model = None
                 
-        print("NeuronAnalyzer initialized")
+        print(f"NeuronAnalyzer initialized (Model type: {'ablated' if self.is_ablated else 'base'})")
 
     def process_single_example(
         self,
@@ -57,13 +59,34 @@ class NeuronAnalyzer:
         layer: int,
         neuron: int
     ) -> ProcessedExample:
-        """Process example working with text strings with added debug statements"""
-        print("\n=== Starting process_single_example ===")
+        """Main entry point for processing examples - delegates to appropriate method"""
+        if self.is_ablated:
+            if self.ht_model is None:
+                raise RuntimeError(
+                    "Ablated model detected but HookedTransformer initialization failed. "
+                    "Cannot process ablated model without HookedTransformer."
+                )
+            return self.process_single_example_ablated(
+                text, pivot_index, original_activation, layer, neuron
+            )
+        return self.process_single_example_base(
+            text, pivot_index, original_activation, layer, neuron
+        )
+
+    def process_single_example_base(
+        self,
+        text: str,
+        pivot_index: int, 
+        original_activation: float,
+        layer: int,
+        neuron: int
+    ) -> ProcessedExample:
+        """Process example for base (non-ablated) models"""
+        print("\n=== Starting process_single_example (Base Model) ===")
         print(f"Input text type: {type(text)}")
         print(f"Input text (first 100 chars): {str(text)[:100]}")
         print(f"Pivot index: {pivot_index}")
         print(f"Original activation: {original_activation}")
-        print(f"Using {'ablated' if self.is_ablated else 'standard'} processing")
 
         # Convert if input is list of tokens
         if isinstance(text, list):
@@ -91,58 +114,28 @@ class NeuronAnalyzer:
 
         try:
             print("\n=== Running pruning and importance measurement ===")
-            if self.is_ablated:
-                pruned_text, max_idx, initial_max, truncated_max = fast_prune_ablated(
-                    self,
-                    layer, 
-                    neuron,
-                    text,
-                    pivot_index=pivot_index,
-                    original_activation=original_activation,
-                    return_maxes=True
-                )
-                
-                tokens_and_importances, _, important_tokens, tokens_and_activations, final_max_idx = fast_measure_importance_ablated(
-                    self,
-                    layer,
-                    neuron, 
-                    pruned_text,
-                    initial_argmax=max_idx
-                )
-            else:
-                pruned_text, max_idx, initial_max, truncated_max = fast_prune(
-                    self,
-                    layer, 
-                    neuron,
-                    text,
-                    pivot_index=pivot_index,
-                    original_activation=original_activation,
-                    return_maxes=True
-                )
-                
-                tokens_and_importances, _, important_tokens, tokens_and_activations, final_max_idx = fast_measure_importance(
-                    self,
-                    layer,
-                    neuron, 
-                    pruned_text,
-                    initial_argmax=max_idx
-                )
+            pruned_text, max_idx, initial_max, truncated_max = fast_prune(
+                self,
+                layer, 
+                neuron,
+                text,
+                pivot_index=pivot_index,
+                original_activation=original_activation,
+                return_maxes=True
+            )
+            
+            tokens_and_importances, _, important_tokens, tokens_and_activations, final_max_idx = fast_measure_importance(
+                self,
+                layer,
+                neuron, 
+                pruned_text,
+                initial_argmax=max_idx
+            )
             
             print("\nImportance measurement results:")
             print(f"Number of important tokens found: {len(important_tokens)}")
-            print("Important tokens:", important_tokens)
-            print("\nToken activations (first 5):")
-            for token, activation in tokens_and_activations[:5]:
-                print(f"Token: {token}, Activation: {activation}")
-            print("\nToken importances (first 5):")
-            for token, importance in tokens_and_importances[:5]:
-                print(f"Token: {token}, Importance: {importance}")
+            print(f"Important tokens: {important_tokens}")
 
-            # Get pruned tokens for comparison
-            pruned_str_tokens = self.to_str_tokens(pruned_text, prepend_bos=True)
-            print(f"\nPruned tokens (first 5): {pruned_str_tokens[:5]}")
-            print(f"Final max index: {final_max_idx}")
-            
             result = ProcessedExample(
                 original_sequence=text,
                 pruned_sequence=pruned_text,
@@ -162,16 +155,165 @@ class NeuronAnalyzer:
             return result
 
         except Exception as e:
-            print(f"\nERROR in process_single_example: {str(e)}")
+            print(f"\nERROR in process_single_example_base: {str(e)}")
             import traceback
             traceback.print_exc()
             raise
 
-    # [Rest of the original NeuronAnalyzer methods remain unchanged]
+    def process_single_example_ablated(
+        self,
+        text: str,
+        pivot_index: int, 
+        original_activation: float,
+        layer: int,
+        neuron: int
+    ) -> ProcessedExample:
+        """Process example for ablated models with specific handling for attention tensors"""
+        if not self.is_ablated:
+            raise ValueError("This method should only be called for ablated models")
+            
+        if self.ht_model is None:
+            raise RuntimeError("HookedTransformer not initialized for ablated model")
+            
+        print("\n=== Starting process_single_example (Ablated Model) ===")
+        print(f"Input text type: {type(text)}")
+        print(f"Input text (first 100 chars): {str(text)[:100]}")
+        print(f"Pivot index: {pivot_index}")
+        print(f"Original activation: {original_activation}")
+
+        # Convert if input is list of tokens
+        if isinstance(text, list):
+            print("Converting token list to text...")
+            text = self.decode_tokens(text)
+            print(f"Converted text (first 100 chars): {text[:100]}")
+
+        # Initial tokenization
+        tokens = self.to_tokens(text, prepend_bos=True)
+        str_tokens = self.to_str_tokens(text, prepend_bos=True)
+        print(f"\nTokenized input:")
+        print(f"Number of tokens: {len(str_tokens)}")
+        print(f"First few tokens: {str_tokens[:5]}")
+
+        # Handle very short sequences directly
+        if len(str_tokens) <= 2:
+            print("Short sequence detected, handling directly")
+            return ProcessedExample(
+                original_sequence=text,
+                pruned_sequence=text,
+                activating_token=str_tokens[pivot_index],
+                context_tokens=str_tokens[:pivot_index],
+                activation_value=original_activation,
+                activation_ratio=1.0
+            )
+
+        try:
+            print("\n=== Running ablated pruning and importance measurement ===")
+            
+            # Get initial model output for validation
+            with torch.no_grad():
+                initial_output = self.model(tokens)
+                
+            # Validate tensor shapes
+            try:
+                attn_shape = initial_output["attention_ablations"].shape
+                neuron_shape = initial_output["neuron_ablations"].shape
+                print(f"Attention ablations shape: {attn_shape}")
+                print(f"Neuron ablations shape: {neuron_shape}")
+            except Exception as shape_error:
+                print(f"Warning: Could not validate tensor shapes: {str(shape_error)}")
+            
+            # Run pruning with shape validation
+            pruned_text, max_idx, initial_max, truncated_max = fast_prune_ablated(
+                self,
+                layer, 
+                neuron,
+                text,
+                pivot_index=pivot_index,
+                original_activation=original_activation,
+                return_maxes=True
+            )
+            
+            # Measure importance with attention-aware processing
+            tokens_and_importances, _, important_tokens, tokens_and_activations, final_max_idx = fast_measure_importance_ablated(
+                self,
+                layer,
+                neuron, 
+                pruned_text,
+                initial_argmax=max_idx
+            )
+            
+            print("\nImportance measurement results:")
+            print(f"Number of important tokens found: {len(important_tokens)}")
+            print(f"Important tokens: {important_tokens}")
+
+            # Create processed example
+            result = ProcessedExample(
+                original_sequence=text,
+                pruned_sequence=pruned_text,
+                activating_token=str_tokens[max_idx] if max_idx < len(str_tokens) else str_tokens[-1],
+                context_tokens=important_tokens,
+                activation_value=truncated_max,
+                activation_ratio=truncated_max/initial_max if abs(initial_max) > 1e-10 else 1.0
+            )
+            
+            print("\n=== Final ProcessedExample ===")
+            print(f"Activating token: {result.activating_token}")
+            print(f"Number of context tokens: {len(result.context_tokens)}")
+            print(f"Context tokens: {result.context_tokens}")
+            print(f"Activation value: {result.activation_value}")
+            print(f"Activation ratio: {result.activation_ratio}")
+            
+            return result
+
+        except Exception as e:
+            print(f"\nERROR in process_single_example_ablated: {str(e)}")
+            print("Error details:")
+            import traceback
+            traceback.print_exc()
+            
+            # Add specific error handling for common tensor shape issues
+            if "EinopsError" in str(e):
+                print("\nTensor shape error detected. Additional information:")
+                try:
+                    with torch.no_grad():
+                        output = self.model(tokens)
+                    print(f"Model output shapes:")
+                    for key, val in output.items():
+                        if isinstance(val, torch.Tensor):
+                            print(f"{key}: {val.shape}")
+                except Exception as e2:
+                    print(f"Error getting shape information: {str(e2)}")
+                    
+            raise
+
     def _model_forward(self, tokens, return_cache=False):
-        """Handle model forward pass with caching via model's __call__ interface"""
-        tokens = tokens.to(self.device)
-        return self.model(tokens, return_cache=return_cache)
+        """Enhanced model forward pass with validation"""
+        try:
+            tokens = tokens.to(self.device)
+            if return_cache:
+                if self.is_ablated:
+                    # For ablated models, we need to get both outputs and cache
+                    output = self.model(tokens)
+                    ablation_hooks = get_ablation_hooks_for_tl(
+                        output,
+                        slice(None),
+                        self.model.config
+                    )
+                    with self.ht_model.hooks(fwd_hooks=ablation_hooks):
+                        _, cache = self.ht_model.run_with_cache(tokens)
+                    return output, cache
+                else:
+                    # For base models, just run with cache
+                    return self.model(tokens, return_cache=return_cache)
+            else:
+                # Regular forward pass
+                return self.model(tokens)
+        except Exception as e:
+            print(f"Error in model forward pass: {str(e)}")
+            if self.is_ablated:
+                print(f"Model type: ablated")
+                print(f"HookedTransformer available: {self.ht_model is not None}")
+            raise
 
     def to_tokens(self, text: str, prepend_bos: bool = True) -> torch.Tensor:
         """Convert text to tokens with better error handling"""
@@ -198,14 +340,12 @@ class NeuronAnalyzer:
 
     def decode(self, tokens) -> str:
         """Decode tokens to text"""
-        print("Decoding tokens to text")
         if isinstance(tokens, torch.Tensor):
             tokens = tokens.tolist()
         return self.tokenizer.decode(tokens)
         
     def decode_tokens(self, tokens: List[int]) -> str:
         """Convert token IDs to text"""
-        print("Converting token IDs to text")
         return self.tokenizer.decode(tokens)
         
     def decode_token(self, token: int) -> str:
@@ -258,33 +398,33 @@ class NeuronAnalyzer:
                 
         return graphs
     
-    def build_graph(self, layer, neuron, examples, min_pattern_frequency=2):
-        """Build neuron graph from processed examples with better error handling"""
-        print(f"\nDEBUG: Building graph for layer {layer}, neuron {neuron}")
+    def build_graph(
+        self,
+        layer: int,
+        neuron: int,
+        examples: List[Dict],
+        min_pattern_frequency: int = 2
+    ) -> nx.DiGraph:
+        """Build neuron graph from processed examples"""
+        print(f"\nBuilding graph for layer {layer}, neuron {neuron}")
 
         # Process all examples
         processed_examples = []
         for i, example in enumerate(examples):
             try:
                 print(f"\nProcessing example {i+1}/{len(examples)}")
-                print(f"DEBUG build_graph: sequence type = {type(example['sequence'])}")
-                print(f"DEBUG build_graph: sequence content = {str(example['sequence'][:10] if isinstance(example['sequence'], (list, str)) else example['sequence'])}...")
-                # Convert sequence to text if it's not already
                 text = (example['sequence'] if isinstance(example['sequence'], str) 
-                else self.decode_tokens(example['sequence']))
+                       else self.decode_tokens(example['sequence']))
         
                 processed = self.process_single_example(
-                text=text,  # Match new method signature
-                pivot_index=example['pivot_index'],
-                original_activation=max(example['activations']),
-                layer=layer,
-                neuron=neuron
-            )
+                    text=text,
+                    pivot_index=example['pivot_index'],
+                    original_activation=max(example['activations']),
+                    layer=layer,
+                    neuron=neuron
+                )
 
                 print(f"Successfully processed example {i+1}")
-                print(f"Activating token: {processed.activating_token}")
-                print(f"Context tokens: {processed.context_tokens}")
-                
                 processed_examples.append(processed)
                 
             except Exception as e:
@@ -351,7 +491,7 @@ class NeuronAnalyzer:
         
         # Filter patterns by frequency
         frequent_patterns = {p for p, c in patterns.items() 
-                        if c >= min_pattern_frequency}
+                           if c >= min_pattern_frequency}
         print(f"Found {len(frequent_patterns)} frequent patterns")
                         
         # Build graph from frequent patterns
