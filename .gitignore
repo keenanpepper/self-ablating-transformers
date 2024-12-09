@@ -169,3 +169,7 @@ explore.ipynb
 *.out
 wandb/
 model_weights/
+
+# Shell scripts
+*.sh 
+*/checkpoints
