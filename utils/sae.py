@@ -1,6 +1,13 @@
 from sae_lens import LanguageModelSAERunnerConfig, SAETrainingRunner
+from utils.compatibility import convert_model_to_hooked_transformer
+import torch
 
-def create_sae_trainer(model, total_training_steps, batch_size, device, run_name=None, project_name="ablation-sae"):
+HOOK_LAYER = 6
+
+def create_sae_trainer(ablation_model, device=None, run_name=None, project_name="ablation-sae", total_training_steps=150_000, batch_size=4096):
+    
+    if run_name is None:
+        print("What are we training an SAE for? Possible invalid run")
     
     total_training_tokens = total_training_steps * batch_size
     
@@ -8,26 +15,28 @@ def create_sae_trainer(model, total_training_steps, batch_size, device, run_name
     lr_decay_steps = total_training_steps // 5  # 20% of training
     l1_warm_up_steps = total_training_steps // 20  # 5% of training
     
+    if device is None:
+        device = "cuda" if torch.cuda.is_available() else "cpu"
+    
+    model = convert_model_to_hooked_transformer(ablation_model)
     
     cfg = LanguageModelSAERunnerConfig(
         # Data Generating Function (Model + Training Distibuion)
-        model_name="tiny-stories-1M",  # our model (more options here: https://neelnanda-io.github.io/TransformerLens/generated/model_properties_table.html)
-        hook_name="blocks.6.hook_mlp_out",  # A valid hook point (see more details here: https://neelnanda-io.github.io/TransformerLens/generated/demos/Main_Demo.html#Hook-Points)
-        hook_layer=6,  # Only one layer in the model.
-        d_in=64,  # the width of the mlp output.
+        model_name=None,  # We are using a custom model.
+        hook_name="blocks.6.hook_mlp_out",
+        hook_layer=HOOK_LAYER,  # Only one layer in the model.
+        d_in=model.cfg.d_model,  # the width of the mlp output.
         dataset_path="apollo-research/roneneldan-TinyStories-tokenizer-gpt2",  # this is a tokenized language dataset on Huggingface for the Tiny Stories corpus.
         
         # SAE Parameters
         expansion_factor=16,  # the width of the SAE. Larger will result in better stats but slower training.
         b_dec_init_method="zeros",  # The geometric median can be used to initialize the decoder weights.
         apply_b_dec_to_input=False,  # We won't apply the decoder weights to the input.
-        scale_sparsity_penalty_by_decoder_norm=True,
-        decoder_heuristic_init=True,
         init_encoder_as_decoder_transpose=True,
         normalize_activations="expected_average_only_in",
         
         # Training Parameters
-        lr=3e-4, 
+        lr=1e-5, 
         lr_scheduler_name="constant",  # constant learning rate with warmup. Could be better schedules out there.
         lr_warm_up_steps=lr_warm_up_steps,  # this can help avoid too many dead features initially.
         lr_decay_steps=lr_decay_steps,  # this will help us avoid overfitting.
@@ -35,7 +44,7 @@ def create_sae_trainer(model, total_training_steps, batch_size, device, run_name
         l1_warm_up_steps=l1_warm_up_steps,  # this can help avoid too many dead features initially.
         lp_norm=1.0,  # the L1 penalty (and not a Lp for p < 1)
         train_batch_size_tokens=batch_size,
-        context_size=512,
+        context_size=model.cfg.n_ctx,  # the context size of the model.
         
         # Activation Store Parameters
         n_batches_in_buffer=64,  # controls how many activations we store / shuffle.
@@ -53,3 +62,7 @@ def create_sae_trainer(model, total_training_steps, batch_size, device, run_name
         checkpoint_path="checkpoints",
         dtype="float32",
     )
+    
+    sae_trainer = SAETrainingRunner(cfg, override_model=model)
+    
+    return sae_trainer

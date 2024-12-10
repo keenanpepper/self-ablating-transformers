@@ -7,9 +7,6 @@ import yaml, re
 from model.gpt_neo import GPTNeoWithSelfAblation
 from model.config import GPTNeoWithSelfAblationConfig
 
-from auto_circuit.utils.graph_utils import patchable_model
-from utils.compatibility import convert_model_to_hooked_transformer, our_state_dict_to_hooked_transformer, get_hooked_transformer_with_config
-
 from dotenv import load_dotenv
 load_dotenv()
 
@@ -26,14 +23,17 @@ loader.add_implicit_resolver(
     |\\.(?:nan|NaN|NAN))$''', re.X),
     list(u'-+0123456789.'))
 
-def load_our_model(model_dir, device, eval_mode=True):
+def load_our_model(model_dir, device=None, eval_mode=True):
+    
+    if device is None:
+        device = "cuda" if torch.cuda.is_available() else "cpu"
     
     # Load model (only .pt) and config (only .yaml)
     model_path = None
     config_path = None
     
     for file in os.listdir(model_dir):
-        if file.endswith(".pt"):
+        if file.endswith(".pt") and file != 'sae.pt':
             model_path = f"{model_dir}/{file}"
         elif file.endswith(".yaml"):
             config_path = f"{model_dir}/{file}"
@@ -68,22 +68,6 @@ def load_our_model(model_dir, device, eval_mode=True):
         model.eval()
     
     return model
-
-def prepare_model_acdc(model, device):
-    hooked_model = convert_model_to_hooked_transformer(model)
-
-    # Requirements mentioned in load_tl_model
-    hooked_model.cfg.use_attn_result = True
-    hooked_model.cfg.use_attn_in = True
-    hooked_model.cfg.use_split_qkv_input = True
-    hooked_model.cfg.use_hook_mlp_in = True
-    hooked_model.eval()
-    for param in hooked_model.parameters():
-        param.requires_grad = False
-        
-    patched_model = patchable_model(hooked_model, factorized=True, slice_output="last_seq", separate_qkv=True, device=device)
-        
-    return patched_model
 
 def access_wandb_runs(entity=None, 
                       project="gpt-neo-self-ablation", 
