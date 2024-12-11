@@ -398,7 +398,7 @@ def fast_measure_importance_ablated(
     masking_token: int = 1,
     threshold: float = 0.8,
 ) -> Tuple[List[Tuple[str, float]], float, List[str], List[Tuple[str, float]], int]:
-    """Measure token importance for ablated models with proper tensor handling"""
+    """Measure token importance for ablated models with position-specific processing"""
     
     # Initial tokenization with BOS
     tokens = analyzer.to_tokens(text_input, prepend_bos=True)
@@ -421,31 +421,34 @@ def fast_measure_importance_ablated(
     for i in range(0, len(masked_prompts), batch_size):
         batch = masked_prompts[i:i + batch_size]
         
-        # Get base model output for hooks
-        with torch.no_grad():
-            output = analyzer.model(batch)
-            ablation_hooks = get_ablation_hooks_for_tl(
-                output,
-                slice(None),
-                analyzer.model.config
-            )
-            
-            # Get ablated activations using HookedTransformer
-            with analyzer.ht_model.hooks(fwd_hooks=ablation_hooks):
-                _, cache = analyzer.ht_model.run_with_cache(batch)
+        # Process each sequence in batch individually
+        for j in range(len(batch)):
+            # Get base model output for hooks
+            with torch.no_grad():
+                output = analyzer.model(batch[j:j+1])
+                # Use the target position (initial_argmax) for hooks
+                ablation_hooks = get_ablation_hooks_for_tl(
+                    output,
+                    initial_argmax if initial_argmax is not None else -1,
+                    analyzer.model.config
+                )
                 
-            # Extract activations for this neuron
-            batch_activations = cache[f'blocks.{layer}.mlp.hook_post'][:, :, neuron]
-            all_masked_activations.extend(batch_activations.cpu().numpy())
-    
-    all_masked_activations = torch.tensor(all_masked_activations, device=analyzer.device)
+                # Get ablated activations using HookedTransformer
+                with analyzer.ht_model.hooks(fwd_hooks=ablation_hooks):
+                    _, cache = analyzer.ht_model.run_with_cache(batch[j:j+1])
+                    
+                # Extract activations for this neuron
+                batch_activations = cache[f'blocks.{layer}.mlp.hook_post'][0, :, neuron]
+                all_masked_activations.append(batch_activations.cpu())
+
+    all_masked_activations = torch.stack(all_masked_activations).to(analyzer.device)
     
     # Get base activations
     with torch.no_grad():
         output = analyzer.model(tokens)
         ablation_hooks = get_ablation_hooks_for_tl(
             output,
-            slice(None),
+            initial_argmax if initial_argmax is not None else -1,
             analyzer.model.config
         )
         with analyzer.ht_model.hooks(fwd_hooks=ablation_hooks):
@@ -486,6 +489,7 @@ def fast_measure_importance_ablated(
 
     return tokens_and_importances, initial_max, important_tokens, tokens_and_activations, initial_argmax
 
+
 def fast_prune_ablated(
     analyzer,
     layer: int,
@@ -499,7 +503,7 @@ def fast_prune_ablated(
     max_post_context_tokens: int = 5,
     return_maxes: bool = False
 ) -> Tuple[str, int] | Tuple[str, int, float, float]:
-    """Pruning for ablated models with proper tensor handling"""
+    """Pruning for ablated models with position-specific processing"""
     
     # Initial setup
     tokens = analyzer.to_tokens(text_input, prepend_bos=True)
@@ -512,12 +516,13 @@ def fast_prune_ablated(
     # Get base activations
     with torch.no_grad():
         output = analyzer.model(tokens)
-        ablation_hooks = get_ablation_hooks_for_tl(
+        # Use initial position for hooks
+        initial_hooks = get_ablation_hooks_for_tl(
             output,
-            slice(None),
+            0,  # Start with first position to get base activations
             analyzer.model.config
         )
-        with analyzer.ht_model.hooks(fwd_hooks=ablation_hooks):
+        with analyzer.ht_model.hooks(fwd_hooks=initial_hooks):
             _, cache = analyzer.ht_model.run_with_cache(tokens)
         activations = cache[f'blocks.{layer}.mlp.hook_post'][0, :, neuron]
 
@@ -575,32 +580,33 @@ def fast_prune_ablated(
         
         # Get ablated activations for batch
         with torch.no_grad():
-            output = analyzer.model(padded_batch)
-            ablation_hooks = get_ablation_hooks_for_tl(
-                output,
-                slice(None),
-                analyzer.model.config
-            )
-            with analyzer.ht_model.hooks(fwd_hooks=ablation_hooks):
-                _, cache = analyzer.ht_model.run_with_cache(padded_batch)
-        
-        batch_activations = cache[f'blocks.{layer}.mlp.hook_post'][:, :, neuron]
-        
-        for j, (expected_pos, activation_slice) in enumerate(zip(batch_positions, batch_activations)):
-            window_start = max(0, expected_pos - 1)
-            window_end = min(len(activation_slice), expected_pos + 2)
-            local_max_pos = window_start + torch.argmax(activation_slice[window_start:window_end]).cpu().item()
-            local_max_val = activation_slice[local_max_pos].cpu().item()
-            
-            activation_ratio = local_max_val / initial_max if abs(initial_max) > 1e-10 else float('inf')
-            
-            passes_threshold = activation_ratio > (1 + proportion_threshold)
-            position_ok = abs(expected_pos - local_max_pos) <= 1
-            
-            if passes_threshold and position_ok and local_max_val > best_activation:
-                best_sequence = batch_texts[j]
-                best_activation = local_max_val
-                best_position = local_max_pos
+            for j, expected_pos in enumerate(batch_positions):
+                output = analyzer.model(padded_batch[j:j+1])  # Process one sequence at a time
+                # Use position-specific hooks for each sequence
+                ablation_hooks = get_ablation_hooks_for_tl(
+                    output,
+                    expected_pos,  # Use the specific position we're analyzing
+                    analyzer.model.config
+                )
+                with analyzer.ht_model.hooks(fwd_hooks=ablation_hooks):
+                    _, cache = analyzer.ht_model.run_with_cache(padded_batch[j:j+1])
+                
+                activation_slice = cache[f'blocks.{layer}.mlp.hook_post'][0, :, neuron]
+                
+                window_start = max(0, expected_pos - 1)
+                window_end = min(len(activation_slice), expected_pos + 2)
+                local_max_pos = window_start + torch.argmax(activation_slice[window_start:window_end]).cpu().item()
+                local_max_val = activation_slice[local_max_pos].cpu().item()
+                
+                activation_ratio = local_max_val / initial_max if abs(initial_max) > 1e-10 else float('inf')
+                
+                passes_threshold = activation_ratio > (1 + proportion_threshold)
+                position_ok = abs(expected_pos - local_max_pos) <= 1
+                
+                if passes_threshold and position_ok and local_max_val > best_activation:
+                    best_sequence = batch_texts[j]
+                    best_activation = local_max_val
+                    best_position = local_max_pos
 
     # Finalize result
     if best_sequence is None:
@@ -620,3 +626,47 @@ def fast_prune_ablated(
     if return_maxes:
         return result, final_position, initial_max, final_activation
     return result, final_position
+
+
+def debug_ablation_shapes(model_output, model_config):
+    """Debug function to analyze tensor shapes and model configuration"""
+    print("\n=== Ablation Shape Debug ===")
+    
+    # Print model config
+    print("\nModel Configuration:")
+    print(f"Number of heads configured: {model_config.num_heads}")
+    print(f"Hidden size: {model_config.hidden_size}")
+    print(f"Head dimension (hidden_size/num_heads): {model_config.hidden_size // model_config.num_heads}")
+    
+    # Print attention ablation tensor shape
+    if "attention_ablations" in model_output:
+        attn_shape = model_output["attention_ablations"].shape
+        print("\nAttention Ablation Tensor:")
+        print(f"Shape: {attn_shape}")
+        if len(attn_shape) == 4:
+            b, l, h, d = attn_shape
+            print(f"Batch size: {b}")
+            print(f"Sequence/Layer dim: {l}")
+            print(f"Head dim: {h}")
+            print(f"Feature dim: {d}")
+            print(f"Implied number of heads (feature_dim/head_dim): {d/(model_config.hidden_size/model_config.num_heads)}")
+    else:
+        print("\nNo attention ablations found in model output")
+    
+    # Print neuron ablation tensor shape
+    if "neuron_ablations" in model_output:
+        neuron_shape = model_output["neuron_ablations"].shape
+        print("\nNeuron Ablation Tensor:")
+        print(f"Shape: {neuron_shape}")
+    else:
+        print("\nNo neuron ablations found in model output")
+
+    # If we have a hook transformer
+    if hasattr(model_config, 'cfg'):
+        print("\nHookedTransformer Config:")
+        print(f"n_heads: {model_config.cfg.n_heads}")
+        print(f"d_model: {model_config.cfg.d_model}")
+        print(f"d_head: {model_config.cfg.d_head}")
+
+    return True
+

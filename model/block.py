@@ -54,8 +54,8 @@ class GPTNeoBlockWithSelfAblation(HookedRootModule):
             attn_ablation = self.attn_ablation_hook(attn_ablation_scores)
             neuron_ablation = self.neuron_ablation_hook(neuron_ablation_scores)
 
-        print(f"temperature type: {type(self.config.temperature_attention)}")
-        print(f"temperature value: {self.config.temperature_attention}")
+        #print(f"temperature type: {type(self.config.temperature_attention)}")
+        #print(f"temperature value: {self.config.temperature_attention}")
         top_k_fn = None
         if self.config.ablation_processing == "soft-top-K-version-1":
             top_k_fn = soft_top_k
