@@ -396,9 +396,13 @@ def fast_measure_importance_ablated(
     max_length: int = 1024,
     max_activation: Optional[float] = None,
     masking_token: int = 1,
-    threshold: float = 0.8,
+    threshold: float = 0.5,  # Changed from 0.8 to 0.5 based on ablation analysis
 ) -> Tuple[List[Tuple[str, float]], float, List[str], List[Tuple[str, float]], int]:
-    """Measure token importance for ablated models with position-specific processing"""
+    """Measure token importance for ablated models using fixed threshold
+    
+    Uses a fixed threshold of 0.5 based on empirical analysis of ablation distributions.
+    A token is considered important if masking it causes >50% drop in activation.
+    """
     
     # Initial tokenization with BOS
     tokens = analyzer.to_tokens(text_input, prepend_bos=True)
@@ -443,7 +447,7 @@ def fast_measure_importance_ablated(
 
     all_masked_activations = torch.stack(all_masked_activations).to(analyzer.device)
     
-    # Get base activations
+    # Get base activations with ablation hooks
     with torch.no_grad():
         output = analyzer.model(tokens)
         ablation_hooks = get_ablation_hooks_for_tl(
@@ -479,17 +483,30 @@ def fast_measure_importance_ablated(
     # Calculate importance for each position
     for i, masked_activations in enumerate(all_masked_activations[1:]):  # Skip first (unmasked) version
         masked_max = masked_activations[initial_argmax].cpu().item()
-        importance = (1 - (masked_max / initial_max)) if abs(initial_max) > 1e-10 else 0.0
+        # Calculate importance as activation drop ratio
+        if abs(initial_max) < 1e-10:
+            importance = 0.0  # If baseline activation is effectively zero
+        else:
+            importance = (1 - (masked_max / initial_max))  # How much activation drops when token is masked
         
         str_token = str_tokens[i]
         tokens_and_importances.append((str_token, importance))
         
+        # Use fixed threshold - token is important if masking it causes >50% drop in activation
         if importance >= threshold and str_token != "<|endoftext|>":
             important_tokens.append(str_token)
 
+    # Log summary of findings
+    print(f"\nFound {len(important_tokens)} important tokens using threshold {threshold}")
+    if len(important_tokens) == 0:
+        print("No tokens above threshold - neuron may be suppressed by ablation")
+    else:
+        print("Important tokens found:")
+        for token in important_tokens:
+            print(f" - {token}")
+
     return tokens_and_importances, initial_max, important_tokens, tokens_and_activations, initial_argmax
-
-
+    
 def fast_prune_ablated(
     analyzer,
     layer: int,
