@@ -1,0 +1,1661 @@
+{
+  "timestamp": "20250117_191355",
+  "config": {
+    "start_layer": 0,
+    "end_layer": 7,
+    "neurons_per_layer": 200,
+    "debug_mode": true
+  },
+  "results": {
+    "0": [
+      {
+        "token": " your",
+        "pre_context": [
+          " glad"
+        ],
+        "activation": 1.9135833978652954
+      },
+      {
+        "token": " very",
+        "pre_context": [
+          " one"
+        ],
+        "activation": 1.7225931882858276
+      },
+      {
+        "token": " Tim",
+        "pre_context": [
+          "my"
+        ],
+        "activation": 0.7526633739471436
+      },
+      {
+        "token": ".",
+        "pre_context": [
+          " warm"
+        ],
+        "activation": 2.06221342086792
+      },
+      {
+        "token": "After",
+        "pre_context": [
+          " sun"
+        ],
+        "activation": 1.7940902709960938
+      },
+      {
+        "token": " grow",
+        "pre_context": [
+          " scratched"
+        ],
+        "activation": 1.2635329961776733
+      },
+      {
+        "token": " fun",
+        "pre_context": [
+          " much"
+        ],
+        "activation": 0.0
+      },
+      {
+        "token": "\"",
+        "pre_context": [
+          "Sure"
+        ],
+        "activation": 1.7635300755500793
+      },
+      {
+        "token": "!\"",
+        "pre_context": [
+          " \""
+        ],
+        "activation": 0.13522738218307495
+      },
+      {
+        "token": ".\"",
+        "pre_context": [
+          " him"
+        ],
+        "activation": 0.42278555035591125
+      },
+      {
+        "token": "\n",
+        "pre_context": [
+          " rh"
+        ],
+        "activation": 3.2566089630126953
+      },
+      {
+        "token": " peacefully",
+        "pre_context": [
+          " rh"
+        ],
+        "activation": 3.2975454330444336
+      },
+      {
+        "token": ".",
+        "pre_context": [
+          " grand"
+        ],
+        "activation": 2.676146125793457
+      },
+      {
+        "token": " claws",
+        "pre_context": [
+          "O"
+        ],
+        "activation": 3.13447904586792
+      },
+      {
+        "token": " tails",
+        "pre_context": [
+          " are"
+        ],
+        "activation": 0.5796481370925903
+      },
+      {
+        "token": ",",
+        "pre_context": [
+          ",\""
+        ],
+        "activation": 0.5163635611534119
+      },
+      {
+        "token": " a",
+        "pre_context": [
+          " gift"
+        ],
+        "activation": 2.857393503189087
+      },
+      {
+        "token": " opened",
+        "pre_context": [
+          " not"
+        ],
+        "activation": 0.0
+      },
+      {
+        "token": ".",
+        "pre_context": [
+          " try"
+        ],
+        "activation": 2.2913951873779297
+      },
+      {
+        "token": " no",
+        "pre_context": [
+          " idea"
+        ],
+        "activation": 2.409926176071167
+      },
+      {
+        "token": " said",
+        "pre_context": [
+          "Free"
+        ],
+        "activation": 2.93947434425354
+      },
+      {
+        "token": ".",
+        "pre_context": [
+          "apped"
+        ],
+        "activation": 1.4783310890197754
+      },
+      {
+        "token": " are",
+        "pre_context": [
+          " shrimp"
+        ],
+        "activation": 0.17086924612522125
+      },
+      {
+        "token": " the",
+        "pre_context": [
+          " hamm"
+        ],
+        "activation": 2.3595714569091797
+      },
+      {
+        "token": " and",
+        "pre_context": [
+          " waved",
+          "apped"
+        ],
+        "activation": 2.418304275063907
+      },
+      {
+        "token": " a",
+        "pre_context": [
+          "my"
+        ],
+        "activation": 2.853968620300293
+      },
+      {
+        "token": "\n",
+        "pre_context": [
+          "my"
+        ],
+        "activation": 2.7302244901657104
+      },
+      {
+        "token": " was",
+        "pre_context": [
+          " jacket"
+        ],
+        "activation": 0.0
+      },
+      {
+        "token": "Tim",
+        "pre_context": [
+          " the"
+        ],
+        "activation": 1.8462121486663818
+      },
+      {
+        "token": ".",
+        "pre_context": [
+          " knock"
+        ],
+        "activation": 0.1953275352716446
+      },
+      {
+        "token": " She",
+        "pre_context": [
+          " over"
+        ],
+        "activation": 2.720918893814087
+      },
+      {
+        "token": ",",
+        "pre_context": [
+          " waiting"
+        ],
+        "activation": 1.007938802242279
+      },
+      {
+        "token": "\n",
+        "pre_context": [
+          " waiting"
+        ],
+        "activation": 1.1343198815981548
+      },
+      {
+        "token": " at",
+        "pre_context": [
+          " looked"
+        ],
+        "activation": 0.0024530622176826
+      },
+      {
+        "token": " and",
+        "pre_context": [
+          " continued"
+        ],
+        "activation": 2.4750607013702393
+      },
+      {
+        "token": "ep",
+        "pre_context": [
+          " let"
+        ],
+        "activation": 2.9200174808502197
+      },
+      {
+        "token": " said",
+        "pre_context": [
+          "Let"
+        ],
+        "activation": 1.9527440071105957
+      },
+      {
+        "token": ",",
+        "pre_context": [
+          " rh"
+        ],
+        "activation": 0.5920446872711181
+      },
+      {
+        "token": "ate",
+        "pre_context": [
+          "Once"
+        ],
+        "activation": 1.797407865524292
+      },
+      {
+        "token": " jacket",
+        "pre_context": [
+          " Every"
+        ],
+        "activation": 1.6204320192337036
+      },
+      {
+        "token": ",",
+        "pre_context": [
+          "Once"
+        ],
+        "activation": 1.9936498403549194
+      },
+      {
+        "token": "ily",
+        "pre_context": [
+          " discuss"
+        ],
+        "activation": 2.370668888092041
+      },
+      {
+        "token": " and",
+        "pre_context": [
+          "ed"
+        ],
+        "activation": 1.5580188035964966
+      },
+      {
+        "token": "my",
+        "pre_context": [
+          "ed"
+        ],
+        "activation": 1.7133398056030273
+      },
+      {
+        "token": ".",
+        "pre_context": [
+          "ed"
+        ],
+        "activation": 1.6213215589523315
+      },
+      {
+        "token": " then",
+        "pre_context": [
+          " smile"
+        ],
+        "activation": 1.0990466674168904
+      },
+      {
+        "token": ".",
+        "pre_context": [
+          " smile"
+        ],
+        "activation": 1.1075576543807983
+      },
+      {
+        "token": " even",
+        "pre_context": [
+          " while"
+        ],
+        "activation": 1.4702035188674927
+      },
+      {
+        "token": " all",
+        "pre_context": [
+          " a"
+        ],
+        "activation": 0.4717808961868286
+      },
+      {
+        "token": ".",
+        "pre_context": [
+          " a"
+        ],
+        "activation": 0.3209536075592041
+      },
+      {
+        "token": ",\"",
+        "pre_context": [
+          " consider"
+        ],
+        "activation": 2.9233224391937256
+      },
+      {
+        "token": " are",
+        "pre_context": [
+          " consider"
+        ],
+        "activation": 2.8601624965667725
+      },
+      {
+        "token": " home",
+        "pre_context": [
+          " pain"
+        ],
+        "activation": 1.7709593772888184
+      },
+      {
+        "token": " and",
+        "pre_context": [
+          " pain"
+        ],
+        "activation": 1.4017628669738769
+      },
+      {
+        "token": " who",
+        "pre_context": [
+          " remembered"
+        ],
+        "activation": 2.3607966899871826
+      },
+      {
+        "token": " bad",
+        "pre_context": [
+          " arm"
+        ],
+        "activation": 2.2742972373962402
+      },
+      {
+        "token": "ers",
+        "pre_context": [
+          " pain"
+        ],
+        "activation": 0.24218833446502686
+      },
+      {
+        "token": ",",
+        "pre_context": [
+          " pain"
+        ],
+        "activation": 0.0941232442855835
+      },
+      {
+        "token": "\"",
+        "pre_context": [
+          " lot"
+        ],
+        "activation": 0.6349546313285828
+      },
+      {
+        "token": " bunny",
+        "pre_context": [
+          " over"
+        ],
+        "activation": 2.3661770820617676
+      },
+      {
+        "token": " The",
+        "pre_context": [
+          " over"
+        ],
+        "activation": 2.4733469486236572
+      },
+      {
+        "token": " store",
+        "pre_context": [
+          " over"
+        ],
+        "activation": 2.3661770820617676
+      },
+      {
+        "token": " to",
+        "pre_context": [
+          " forg"
+        ],
+        "activation": 1.7138984203338623
+      },
+      {
+        "token": " Tim",
+        "pre_context": [
+          " forg"
+        ],
+        "activation": 1.6191425323486328
+      },
+      {
+        "token": " delicious",
+        "pre_context": [
+          "."
+        ],
+        "activation": 0.0003937268047593534
+      },
+      {
+        "token": ".",
+        "pre_context": [
+          " closed"
+        ],
+        "activation": 3.2166285514831543
+      },
+      {
+        "token": " any",
+        "pre_context": [
+          "Oh"
+        ],
+        "activation": 1.801226019859314
+      },
+      {
+        "token": " \"",
+        "pre_context": [
+          "Oh"
+        ],
+        "activation": 1.9807268381118774
+      },
+      {
+        "token": ".",
+        "pre_context": [
+          " breath"
+        ],
+        "activation": 1.2276856899261475
+      },
+      {
+        "token": " Right",
+        "pre_context": [
+          " metal"
+        ],
+        "activation": 0.3372579514980316
+      },
+      {
+        "token": "?",
+        "pre_context": [
+          " scary"
+        ],
+        "activation": 0.1832500398159027
+      },
+      {
+        "token": " us",
+        "pre_context": [
+          " scary"
+        ],
+        "activation": 0.18896491825580597
+      },
+      {
+        "token": " quiet",
+        "pre_context": [
+          "ate"
+        ],
+        "activation": 0.21645359694957733
+      },
+      {
+        "token": "in",
+        "pre_context": [
+          " sort"
+        ],
+        "activation": 0.4090668559074402
+      },
+      {
+        "token": " no",
+        "pre_context": [
+          " In"
+        ],
+        "activation": 0.656378984451294
+      },
+      {
+        "token": "!\"",
+        "pre_context": [
+          " In"
+        ],
+        "activation": 0.631687343120575
+      },
+      {
+        "token": " the",
+        "pre_context": [
+          " waiting"
+        ],
+        "activation": 2.191555976867676
+      },
+      {
+        "token": " mean",
+        "pre_context": [
+          " special"
+        ],
+        "activation": 0.15569087862968445
+      },
+      {
+        "token": ",",
+        "pre_context": [
+          " animals"
+        ],
+        "activation": 1.009049415588379
+      },
+      {
+        "token": " zoo",
+        "pre_context": [
+          " animals"
+        ],
+        "activation": 0.988178014755249
+      },
+      {
+        "token": " to",
+        "pre_context": [
+          "Do"
+        ],
+        "activation": 1.3851642608642578
+      },
+      {
+        "token": ".",
+        "pre_context": [
+          " said"
+        ],
+        "activation": 0.0
+      },
+      {
+        "token": " the",
+        "pre_context": [
+          " see"
+        ],
+        "activation": 0.0
+      },
+      {
+        "token": " be",
+        "pre_context": [
+          " consider"
+        ],
+        "activation": 0.18984173238277435
+      },
+      {
+        "token": " She",
+        "pre_context": [
+          " consider"
+        ],
+        "activation": 0.156762957572937
+      },
+      {
+        "token": " sign",
+        "pre_context": [
+          " wanted"
+        ],
+        "activation": 1.8354278802871704
+      },
+      {
+        "token": " time",
+        "pre_context": [
+          " Tim"
+        ],
+        "activation": 0.8431030511856079
+      },
+      {
+        "token": ",\"",
+        "pre_context": [
+          " Do"
+        ],
+        "activation": 0.340961217880249
+      }
+    ],
+    "1": [
+      {
+        "token": " She",
+        "pre_context": [
+          " get"
+        ],
+        "activation": 2.1065666675567627
+      },
+      {
+        "token": " and",
+        "pre_context": [
+          " trucks"
+        ],
+        "activation": 0.5865800380706787
+      },
+      {
+        "token": " Tom",
+        "pre_context": [
+          " again"
+        ],
+        "activation": 1.382930040359497
+      },
+      {
+        "token": " -",
+        "pre_context": [
+          " back"
+        ],
+        "activation": 1.1756058931350708
+      },
+      {
+        "token": " the",
+        "pre_context": [
+          " back"
+        ],
+        "activation": 1.3832148313522339
+      },
+      {
+        "token": "Yeah",
+        "pre_context": [
+          " pulled"
+        ],
+        "activation": 1.401296615600586
+      },
+      {
+        "token": " things",
+        "pre_context": [
+          " made"
+        ],
+        "activation": 0.9670867323875427
+      },
+      {
+        "token": " favorite",
+        "pre_context": [
+          " lot"
+        ],
+        "activation": 0.9696594774723053
+      },
+      {
+        "token": " mom",
+        "pre_context": [
+          " candy"
+        ],
+        "activation": 1.2628905773162842
+      },
+      {
+        "token": " a",
+        "pre_context": [
+          "in"
+        ],
+        "activation": 2.1933419704437256
+      },
+      {
+        "token": " for",
+        "pre_context": [
+          " happy"
+        ],
+        "activation": 0.0
+      },
+      {
+        "token": " and",
+        "pre_context": [
+          " Ow"
+        ],
+        "activation": 0.4418250322341919
+      },
+      {
+        "token": " do",
+        "pre_context": [
+          " what"
+        ],
+        "activation": 0.5193445086479187
+      },
+      {
+        "token": " checked",
+        "pre_context": [
+          " the"
+        ],
+        "activation": 1.703896164894104
+      },
+      {
+        "token": " and",
+        "pre_context": [
+          " called"
+        ],
+        "activation": 0.2582915425300598
+      },
+      {
+        "token": " eat",
+        "pre_context": [
+          " says"
+        ],
+        "activation": 2.407200574874878
+      },
+      {
+        "token": " whisk",
+        "pre_context": [
+          " know"
+        ],
+        "activation": 2.311335563659668
+      },
+      {
+        "token": "\n",
+        "pre_context": [
+          " zo"
+        ],
+        "activation": 1.1710968017578125
+      },
+      {
+        "token": ".",
+        "pre_context": [
+          " Ow"
+        ],
+        "activation": 1.249029278755188
+      },
+      {
+        "token": " y",
+        "pre_context": [
+          " play"
+        ],
+        "activation": 0.7177547812461853
+      },
+      {
+        "token": " and",
+        "pre_context": [
+          " saw"
+        ],
+        "activation": 3.0001492500305176
+      },
+      {
+        "token": "\n",
+        "pre_context": [
+          " favorite"
+        ],
+        "activation": 2.155975341796875
+      },
+      {
+        "token": " put",
+        "pre_context": [
+          " of"
+        ],
+        "activation": 1.862884759902954
+      },
+      {
+        "token": " gone",
+        "pre_context": [
+          " had"
+        ],
+        "activation": 1.853602409362793
+      },
+      {
+        "token": " Tim",
+        "pre_context": [
+          " cried"
+        ],
+        "activation": 1.7125529050827026
+      },
+      {
+        "token": " But",
+        "pre_context": [
+          " did"
+        ],
+        "activation": 2.6916680335998535
+      },
+      {
+        "token": " buy",
+        "pre_context": [
+          " and"
+        ],
+        "activation": 4.219571113586426
+      },
+      {
+        "token": " more",
+        "pre_context": [
+          " and"
+        ],
+        "activation": 2.9747092723846436
+      },
+      {
+        "token": "?\"",
+        "pre_context": [
+          " bow"
+        ],
+        "activation": 0.09152815490961075
+      },
+      {
+        "token": " your",
+        "pre_context": [
+          " so"
+        ],
+        "activation": 1.8833668231964111
+      },
+      {
+        "token": " to",
+        "pre_context": [
+          " so"
+        ],
+        "activation": 1.7792060375213623
+      },
+      {
+        "token": ",",
+        "pre_context": [
+          " animals"
+        ],
+        "activation": 1.363966941833496
+      },
+      {
+        "token": " off",
+        "pre_context": [
+          " scratched"
+        ],
+        "activation": 1.0807323455810547
+      },
+      {
+        "token": " w",
+        "pre_context": [
+          "renches"
+        ],
+        "activation": 1.5105698108673096
+      },
+      {
+        "token": " Lily",
+        "pre_context": [
+          " son"
+        ],
+        "activation": 1.9153742790222168
+      },
+      {
+        "token": " to",
+        "pre_context": [
+          " started"
+        ],
+        "activation": 1.353621244430542
+      },
+      {
+        "token": ",",
+        "pre_context": [
+          " looked"
+        ],
+        "activation": 1.5392749309539795
+      },
+      {
+        "token": ",\"",
+        "pre_context": [
+          " said"
+        ],
+        "activation": 1.441892385482788
+      },
+      {
+        "token": " she",
+        "pre_context": [
+          " said"
+        ],
+        "activation": 1.1516106128692627
+      },
+      {
+        "token": "\n",
+        "pre_context": [
+          " Alice"
+        ],
+        "activation": 1.8946558237075806
+      },
+      {
+        "token": ".",
+        "pre_context": [
+          " Alice"
+        ],
+        "activation": 2.6789019107818604
+      },
+      {
+        "token": " have",
+        "pre_context": [
+          " when"
+        ],
+        "activation": 1.6189388036727905
+      },
+      {
+        "token": " way",
+        "pre_context": [
+          " brothers"
+        ],
+        "activation": 2.9366886615753174
+      },
+      {
+        "token": " belong",
+        "pre_context": [
+          " him"
+        ],
+        "activation": 2.8930823802948
+      },
+      {
+        "token": "\"",
+        "pre_context": [
+          " Ow"
+        ],
+        "activation": 1.7601419687271118
+      }
+    ],
+    "2": [
+      {
+        "token": " cried",
+        "pre_context": [
+          " bunny"
+        ],
+        "activation": 2.30279541015625
+      },
+      {
+        "token": "\n",
+        "pre_context": [
+          " bunny"
+        ],
+        "activation": 1.4741873741149902
+      },
+      {
+        "token": ".",
+        "pre_context": [
+          " bunny"
+        ],
+        "activation": 1.1704795837402344
+      },
+      {
+        "token": " away",
+        "pre_context": [
+          " fence"
+        ],
+        "activation": 1.8725546598434448
+      },
+      {
+        "token": " the",
+        "pre_context": [
+          " cars"
+        ],
+        "activation": 0.8597102165222168
+      },
+      {
+        "token": " and",
+        "pre_context": [
+          " his"
+        ],
+        "activation": 1.6865441799163818
+      },
+      {
+        "token": " and",
+        "pre_context": [
+          " never"
+        ],
+        "activation": 1.9583970762531472e-07
+      },
+      {
+        "token": " can",
+        "pre_context": [
+          ","
+        ],
+        "activation": 4.9537818995304406e-05
+      },
+      {
+        "token": " to",
+        "pre_context": [
+          " listened"
+        ],
+        "activation": 0.0
+      },
+      {
+        "token": " Tim",
+        "pre_context": [
+          " likes"
+        ],
+        "activation": 0.00014246944920159876
+      },
+      {
+        "token": " got",
+        "pre_context": [
+          " boy"
+        ],
+        "activation": 0.0
+      },
+      {
+        "token": " held",
+        "pre_context": [
+          " he"
+        ],
+        "activation": 0.0
+      },
+      {
+        "token": " explained",
+        "pre_context": [
+          " mom"
+        ],
+        "activation": 0.0
+      },
+      {
+        "token": " animals",
+        "pre_context": [
+          " like"
+        ],
+        "activation": 2.7994606494903564
+      },
+      {
+        "token": ",",
+        "pre_context": [
+          " favorite"
+        ],
+        "activation": 1.1535972118377686
+      },
+      {
+        "token": " closer",
+        "pre_context": [
+          " out"
+        ],
+        "activation": 4.467365264892578
+      },
+      {
+        "token": "!\"",
+        "pre_context": [
+          " bad"
+        ],
+        "activation": 3.252119541168213
+      },
+      {
+        "token": " marry",
+        "pre_context": [
+          " me"
+        ],
+        "activation": 3.4399406909942627
+      },
+      {
+        "token": " ice",
+        "pre_context": [
+          " some"
+        ],
+        "activation": 0.0026372589636594057
+      },
+      {
+        "token": " the",
+        "pre_context": [
+          " was"
+        ],
+        "activation": 3.165505051612854
+      },
+      {
+        "token": " using",
+        "pre_context": [
+          " was"
+        ],
+        "activation": 2.3393197059631348
+      },
+      {
+        "token": " be",
+        "pre_context": [
+          "."
+        ],
+        "activation": 1.7538524866104126
+      },
+      {
+        "token": "\n",
+        "pre_context": [
+          " wanted"
+        ],
+        "activation": 2.9351518154144287
+      },
+      {
+        "token": "What",
+        "pre_context": [
+          " \""
+        ],
+        "activation": 1.68616783618927
+      },
+      {
+        "token": " owner",
+        "pre_context": [
+          " no"
+        ],
+        "activation": 1.4694620370864868
+      },
+      {
+        "token": " in",
+        "pre_context": [
+          " the"
+        ],
+        "activation": 0.00025477935560047626
+      },
+      {
+        "token": " wondered",
+        "pre_context": [
+          " just"
+        ],
+        "activation": 2.6833152770996094
+      },
+      {
+        "token": ".",
+        "pre_context": [
+          "Once"
+        ],
+        "activation": 2.453666925430298
+      },
+      {
+        "token": " ",
+        "pre_context": [
+          "."
+        ],
+        "activation": 0.0
+      },
+      {
+        "token": " of",
+        "pre_context": [
+          "in"
+        ],
+        "activation": 2.1714844703674316
+      },
+      {
+        "token": " group",
+        "pre_context": [
+          "in"
+        ],
+        "activation": 2.2036142349243164
+      },
+      {
+        "token": "'s",
+        "pre_context": [
+          " mouth"
+        ],
+        "activation": 0.7143872380256653
+      },
+      {
+        "token": " The",
+        "pre_context": [
+          " store"
+        ],
+        "activation": 2.7536258697509766
+      },
+      {
+        "token": ".",
+        "pre_context": [
+          " grocery"
+        ],
+        "activation": 2.193006753921509
+      }
+    ],
+    "3": [
+      {
+        "token": " box",
+        "pre_context": [
+          " the"
+        ],
+        "activation": 0.0
+      },
+      {
+        "token": "\"",
+        "pre_context": [
+          " p"
+        ],
+        "activation": 2.3585031032562256
+      },
+      {
+        "token": " live",
+        "pre_context": [
+          " with"
+        ],
+        "activation": 5.8010334968566895
+      },
+      {
+        "token": " the",
+        "pre_context": [
+          " Mail"
+        ],
+        "activation": 3.991944122314453
+      },
+      {
+        "token": ",",
+        "pre_context": [
+          " bed"
+        ],
+        "activation": 2.7668872356414793
+      },
+      {
+        "token": " animal",
+        "pre_context": [
+          " favorite"
+        ],
+        "activation": 5.327622890472412
+      },
+      {
+        "token": "?",
+        "pre_context": [
+          " of"
+        ],
+        "activation": 8.898660659790039
+      },
+      {
+        "token": " family",
+        "pre_context": [
+          " of"
+        ],
+        "activation": 4.068024635314941
+      },
+      {
+        "token": " The",
+        "pre_context": [
+          " no"
+        ],
+        "activation": 4.27631950378418
+      },
+      {
+        "token": "\"",
+        "pre_context": [
+          " shouted"
+        ],
+        "activation": 0.8976203203201294
+      },
+      {
+        "token": " needle",
+        "pre_context": [
+          " held"
+        ],
+        "activation": 4.1341352462768555
+      },
+      {
+        "token": ".",
+        "pre_context": [
+          "ep"
+        ],
+        "activation": 1.1539349198341369
+      },
+      {
+        "token": " live",
+        "pre_context": [
+          " brothers"
+        ],
+        "activation": 2.8088080883026123
+      },
+      {
+        "token": ",",
+        "pre_context": [
+          " her"
+        ],
+        "activation": 2.490602493286133
+      },
+      {
+        "token": " car",
+        "pre_context": [
+          " with"
+        ],
+        "activation": 3.486815643310547
+      },
+      {
+        "token": "'s",
+        "pre_context": [
+          " what"
+        ],
+        "activation": 1.3345324198404949
+      },
+      {
+        "token": " them",
+        "pre_context": [
+          " with"
+        ],
+        "activation": 7.096771717071533
+      },
+      {
+        "token": " gently",
+        "pre_context": [
+          " paw"
+        ],
+        "activation": 6.274204254150391
+      },
+      {
+        "token": ".",
+        "pre_context": [
+          " claws"
+        ],
+        "activation": 1.1691586176554363
+      },
+      {
+        "token": "\n",
+        "pre_context": [
+          " claws"
+        ],
+        "activation": 2.4646103382110596
+      }
+    ],
+    "4": [
+      {
+        "token": " are",
+        "pre_context": [
+          " they"
+        ],
+        "activation": 0.6860190331935883
+      },
+      {
+        "token": " you",
+        "pre_context": [
+          "Will"
+        ],
+        "activation": 2.354900360107422
+      },
+      {
+        "token": " were",
+        "pre_context": [
+          " shrimp"
+        ],
+        "activation": 18.028409957885742
+      },
+      {
+        "token": " even",
+        "pre_context": [
+          "."
+        ],
+        "activation": 1.8635295629501343
+      },
+      {
+        "token": " a",
+        "pre_context": [
+          " treat"
+        ],
+        "activation": 6.000320233094195e-05
+      },
+      {
+        "token": " so",
+        "pre_context": [
+          " It"
+        ],
+        "activation": 2.1483276668732287e-06
+      },
+      {
+        "token": " cried",
+        "pre_context": [
+          "'t"
+        ],
+        "activation": 1.3315792083740234
+      },
+      {
+        "token": " not",
+        "pre_context": [
+          " are",
+          " did",
+          " were"
+        ],
+        "activation": 3.8105847239494324
+      },
+      {
+        "token": " dad",
+        "pre_context": [
+          " to"
+        ],
+        "activation": 9.406591415405273
+      },
+      {
+        "token": " in",
+        "pre_context": [
+          " toys"
+        ],
+        "activation": 4.318181991577148
+      },
+      {
+        "token": " more",
+        "pre_context": [
+          " repair"
+        ],
+        "activation": 6.952845096588135
+      },
+      {
+        "token": " goodbye",
+        "pre_context": [
+          " They"
+        ],
+        "activation": 14.108725865681967
+      },
+      {
+        "token": " candy",
+        "pre_context": [
+          " no"
+        ],
+        "activation": 2.663229465484619
+      }
+    ],
+    "5": [
+      {
+        "token": "\"",
+        "pre_context": [
+          "\n"
+        ],
+        "activation": 4.099684834480286
+      },
+      {
+        "token": " why",
+        "pre_context": [
+          ","
+        ],
+        "activation": 1.091504454612732
+      },
+      {
+        "token": " pink",
+        "pre_context": [
+          " toys"
+        ],
+        "activation": 7.262173080444336
+      },
+      {
+        "token": "\"",
+        "pre_context": [
+          "\n"
+        ],
+        "activation": 1.3964383602142334
+      },
+      {
+        "token": " wiped",
+        "pre_context": [
+          " He"
+        ],
+        "activation": 10.328428745269775
+      },
+      {
+        "token": "ed",
+        "pre_context": [
+          " marvel"
+        ],
+        "activation": 8.228923797607422
+      },
+      {
+        "token": " buttons",
+        "pre_context": [
+          " with"
+        ],
+        "activation": 0.28310471773147583
+      },
+      {
+        "token": " in",
+        "pre_context": [
+          " vows"
+        ],
+        "activation": 0.0
+      },
+      {
+        "token": " likes",
+        "pre_context": [
+          " it"
+        ],
+        "activation": 0.9643507798512777
+      },
+      {
+        "token": ",",
+        "pre_context": [
+          " down"
+        ],
+        "activation": 0.36248087882995605
+      },
+      {
+        "token": " too",
+        "pre_context": [
+          " late"
+        ],
+        "activation": 6.47875452041626
+      },
+      {
+        "token": " loved",
+        "pre_context": [
+          " with"
+        ],
+        "activation": 5.636035442352295
+      }
+    ],
+    "6": [
+      {
+        "token": " friends",
+        "pre_context": [
+          " your"
+        ],
+        "activation": 0.5627620220184326
+      },
+      {
+        "token": " Tim",
+        "pre_context": [
+          " But"
+        ],
+        "activation": 1.638400932153066
+      },
+      {
+        "token": " tails",
+        "pre_context": [
+          "."
+        ],
+        "activation": 2.698641061782837
+      },
+      {
+        "token": " wished",
+        "pre_context": [
+          " They"
+        ],
+        "activation": 6.727850914001465
+      },
+      {
+        "token": " while",
+        "pre_context": [
+          " The"
+        ],
+        "activation": 3.7747397422790527
+      },
+      {
+        "token": " But",
+        "pre_context": [
+          " Tim"
+        ],
+        "activation": 5.2187018394470215
+      },
+      {
+        "token": "my",
+        "pre_context": [
+          " feeling"
+        ],
+        "activation": 2.7143726348876953
+      },
+      {
+        "token": "\"",
+        "pre_context": [
+          "\n"
+        ],
+        "activation": 0.6808020199338595
+      }
+    ],
+    "7": [
+      {
+        "token": " started",
+        "pre_context": [
+          "ed"
+        ],
+        "activation": 7.359003067016602
+      },
+      {
+        "token": "ers",
+        "pre_context": [
+          " hamm"
+        ],
+        "activation": 7.343177795410156
+      },
+      {
+        "token": " and",
+        "pre_context": [
+          " as"
+        ],
+        "activation": 4.04738187789917
+      },
+      {
+        "token": " using",
+        "pre_context": [
+          " as"
+        ],
+        "activation": 3.3728182315826416
+      },
+      {
+        "token": " mouth",
+        "pre_context": [
+          " its"
+        ],
+        "activation": 1.0808333158493042
+      },
+      {
+        "token": " said",
+        "pre_context": [
+          " mom"
+        ],
+        "activation": 0.4921729862689972
+      },
+      {
+        "token": " front",
+        "pre_context": [
+          " in"
+        ],
+        "activation": 1.578879714012146
+      },
+      {
+        "token": " that",
+        "pre_context": [
+          " box"
+        ],
+        "activation": 3.2253427505493164
+      },
+      {
+        "token": ".",
+        "pre_context": [
+          " not"
+        ],
+        "activation": 0.27782419323921204
+      },
+      {
+        "token": " split",
+        "pre_context": [
+          " was"
+        ],
+        "activation": 6.282443046569824
+      },
+      {
+        "token": " sky",
+        "pre_context": [
+          " castle"
+        ],
+        "activation": 4.420905590057373
+      },
+      {
+        "token": " way",
+        "pre_context": [
+          " their"
+        ],
+        "activation": 4.125531196594238
+      },
+      {
+        "token": " scary",
+        "pre_context": [
+          " were"
+        ],
+        "activation": 1.6862469911575317
+      }
+    ]
+  }
+}
