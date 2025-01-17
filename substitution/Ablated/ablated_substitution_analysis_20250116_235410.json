@@ -1,0 +1,345 @@
+{
+  "results": {
+    "l1_n72": [
+      {
+        "original_token": " do",
+        "substitute_token": ".",
+        "bert_probability": 0.030035069212317467,
+        "original_activation": 0.5193445086479187,
+        "new_activation": 0.8392192125320435,
+        "activation_ratio": 1.61592006569377,
+        "pre_context": [
+          " what"
+        ],
+        "post_context": [],
+        "pattern_used": "What word fits here: {pre} [MASK] {post}"
+      },
+      {
+        "original_token": " do",
+        "substitute_token": "!",
+        "bert_probability": 0.01401982456445694,
+        "original_activation": 0.5193445086479187,
+        "new_activation": 0.7707081437110901,
+        "activation_ratio": 1.4840017192394719,
+        "pre_context": [
+          " what"
+        ],
+        "post_context": [],
+        "pattern_used": "Complete the phrase: {pre} [MASK] {post}"
+      },
+      {
+        "original_token": " do",
+        "substitute_token": "-",
+        "bert_probability": 5.997574044158682e-05,
+        "original_activation": 0.5193445086479187,
+        "new_activation": 1.313027262687683,
+        "activation_ratio": 2.5282394264764028,
+        "pre_context": [
+          " what"
+        ],
+        "post_context": [],
+        "pattern_used": "What word fits here: {pre} [MASK] {post}"
+      },
+      {
+        "original_token": " checked",
+        "substitute_token": ".",
+        "bert_probability": 0.8375424146652222,
+        "original_activation": 1.703896164894104,
+        "new_activation": 0.6045404672622681,
+        "activation_ratio": 0.354798889578955,
+        "pre_context": [
+          " the"
+        ],
+        "post_context": [],
+        "pattern_used": "What word fits here: {pre} [MASK] {post}"
+      },
+      {
+        "original_token": " checked",
+        "substitute_token": "!",
+        "bert_probability": 0.050620537251234055,
+        "original_activation": 1.703896164894104,
+        "new_activation": 1.1151374578475952,
+        "activation_ratio": 0.6544632711917044,
+        "pre_context": [
+          " the"
+        ],
+        "post_context": [],
+        "pattern_used": "Fill in: {pre} [MASK] {post}"
+      }
+    ],
+    "l1_n87": [
+      {
+        "original_token": "\n",
+        "substitute_token": "|",
+        "bert_probability": 0.08002147823572159,
+        "original_activation": 1.1710968017578125,
+        "new_activation": 0.9265303015708923,
+        "activation_ratio": 0.7911645733983504,
+        "pre_context": [
+          " zo"
+        ],
+        "post_context": [],
+        "pattern_used": "Complete with punctuation: {pre} [MASK] {post}"
+      },
+      {
+        "original_token": "\n",
+        "substitute_token": "mo",
+        "bert_probability": 0.027740037068724632,
+        "original_activation": 1.1710968017578125,
+        "new_activation": 0.5018643736839294,
+        "activation_ratio": 0.42854217766680996,
+        "pre_context": [
+          " zo"
+        ],
+        "post_context": [],
+        "pattern_used": "In the sentence '{pre} [MASK] {post}', the punctuation"
+      },
+      {
+        "original_token": "\n",
+        "substitute_token": "lo",
+        "bert_probability": 0.024575667455792427,
+        "original_activation": 1.1710968017578125,
+        "new_activation": 1.339302897453308,
+        "activation_ratio": 1.1436312484527487,
+        "pre_context": [
+          " zo"
+        ],
+        "post_context": [],
+        "pattern_used": "In the sentence '{pre} [MASK] {post}', the punctuation"
+      },
+      {
+        "original_token": ".",
+        "substitute_token": "|",
+        "bert_probability": 0.22688820958137512,
+        "original_activation": 1.249029278755188,
+        "new_activation": 1.2613413333892822,
+        "activation_ratio": 1.009857298658655,
+        "pre_context": [
+          " Ow"
+        ],
+        "post_context": [],
+        "pattern_used": "Complete with punctuation: {pre} [MASK] {post}"
+      },
+      {
+        "original_token": ".",
+        "substitute_token": "ow",
+        "bert_probability": 0.01877838745713234,
+        "original_activation": 1.249029278755188,
+        "new_activation": 1.0471618175506592,
+        "activation_ratio": 0.8383805210669564,
+        "pre_context": [
+          " Ow"
+        ],
+        "post_context": [],
+        "pattern_used": "In the sentence '{pre} [MASK] {post}', the punctuation"
+      },
+      {
+        "original_token": ".",
+        "substitute_token": "...",
+        "bert_probability": 0.00963424053043127,
+        "original_activation": 1.249029278755188,
+        "new_activation": 0.39464184641838074,
+        "activation_ratio": 0.3159588435042052,
+        "pre_context": [
+          " Ow"
+        ],
+        "post_context": [],
+        "pattern_used": "In the sentence '{pre} [MASK] {post}', the punctuation"
+      }
+    ],
+    "l2_n132": [
+      {
+        "original_token": "What",
+        "substitute_token": "|",
+        "bert_probability": 0.30448615550994873,
+        "original_activation": 1.68616783618927,
+        "new_activation": 1.3237665891647339,
+        "activation_ratio": 0.7850740363761409,
+        "pre_context": [
+          " \""
+        ],
+        "post_context": [],
+        "pattern_used": "Complete the phrase: {pre} [MASK] {post}"
+      }
+    ],
+    "l2_n152": [
+      {
+        "original_token": " in",
+        "substitute_token": "?",
+        "bert_probability": 0.05074169859290123,
+        "original_activation": 0.00025477935560047626,
+        "new_activation": 0.1721964031457901,
+        "activation_ratio": 675.8648193451519,
+        "pre_context": [
+          " the"
+        ],
+        "post_context": [],
+        "pattern_used": "Complete with a preposition: {pre} [MASK] {post}"
+      }
+    ],
+    "l2_n189": [
+      {
+        "original_token": " The",
+        "substitute_token": "house",
+        "bert_probability": 0.027242224663496017,
+        "original_activation": 2.7536258697509766,
+        "new_activation": 2.2835640907287598,
+        "activation_ratio": 0.829293520159757,
+        "pre_context": [
+          " store"
+        ],
+        "post_context": [],
+        "pattern_used": "The phrase '{pre} [MASK] {post}' uses an article"
+      },
+      {
+        "original_token": " The",
+        "substitute_token": "door",
+        "bert_probability": 0.016493406146764755,
+        "original_activation": 2.7536258697509766,
+        "new_activation": 0.5831425189971924,
+        "activation_ratio": 0.2117726033166331,
+        "pre_context": [
+          " store"
+        ],
+        "post_context": [],
+        "pattern_used": "Consider '{pre} [MASK] {post}' as a phrase"
+      },
+      {
+        "original_token": " The",
+        "substitute_token": "front",
+        "bert_probability": 0.01563974842429161,
+        "original_activation": 2.7536258697509766,
+        "new_activation": 0.6559804081916809,
+        "activation_ratio": 0.23822423205626128,
+        "pre_context": [
+          " store"
+        ],
+        "post_context": [],
+        "pattern_used": "Consider '{pre} [MASK] {post}' as a phrase"
+      },
+      {
+        "original_token": ".",
+        "substitute_token": "stores",
+        "bert_probability": 0.047479402273893356,
+        "original_activation": 2.193006753921509,
+        "new_activation": 0.8989065885543823,
+        "activation_ratio": 0.4098968628103713,
+        "pre_context": [
+          " grocery"
+        ],
+        "post_context": [],
+        "pattern_used": "The text reads '{pre} [MASK] {post}' with proper punctuation"
+      },
+      {
+        "original_token": ".",
+        "substitute_token": "|",
+        "bert_probability": 0.02279428020119667,
+        "original_activation": 2.193006753921509,
+        "new_activation": 0.7749568819999695,
+        "activation_ratio": 0.35337642285606313,
+        "pre_context": [
+          " grocery"
+        ],
+        "post_context": [],
+        "pattern_used": "Complete with punctuation: {pre} [MASK] {post}"
+      },
+      {
+        "original_token": ".",
+        "substitute_token": "bag",
+        "bert_probability": 0.010143768042325974,
+        "original_activation": 2.193006753921509,
+        "new_activation": 0.5534749031066895,
+        "activation_ratio": 0.2523817594802078,
+        "pre_context": [
+          " grocery"
+        ],
+        "post_context": [],
+        "pattern_used": "The text reads '{pre} [MASK] {post}' with proper punctuation"
+      }
+    ]
+  },
+  "statistics": {
+    "total_neurons_analyzed": 5,
+    "neurons_with_substitutions": 5,
+    "substitutions_by_type": {
+      "general": 6,
+      "punctuation": 9,
+      "preposition": 1,
+      "article": 3
+    },
+    "average_activation_ratio": 36.321568253533435,
+    "substitutions_by_layer": {
+      "1": 11,
+      "2": 8
+    },
+    "bert_probability_distribution": [
+      0.030035069212317467,
+      0.01401982456445694,
+      5.997574044158682e-05,
+      0.8375424146652222,
+      0.050620537251234055,
+      0.08002147823572159,
+      0.027740037068724632,
+      0.024575667455792427,
+      0.22688820958137512,
+      0.01877838745713234,
+      0.00963424053043127,
+      0.30448615550994873,
+      0.05074169859290123,
+      0.027242224663496017,
+      0.016493406146764755,
+      0.01563974842429161,
+      0.047479402273893356,
+      0.02279428020119667,
+      0.010143768042325974
+    ],
+    "pattern_effectiveness": {
+      "What word fits here: {pre} [MASK] {post}": 1.4996527939163762,
+      "Complete the phrase: {pre} [MASK] {post}": 1.1345378778078063,
+      "Fill in: {pre} [MASK] {post}": 0.6544632711917044,
+      "Complete with punctuation: {pre} [MASK] {post}": 0.7181327649710227,
+      "In the sentence '{pre} [MASK] {post}', the punctuation": 0.6816281976726801,
+      "Complete with a preposition: {pre} [MASK] {post}": 675.8648193451519,
+      "The phrase '{pre} [MASK] {post}' uses an article": 0.829293520159757,
+      "Consider '{pre} [MASK] {post}' as a phrase": 0.22499841768644718,
+      "The text reads '{pre} [MASK] {post}' with proper punctuation": 0.33113931114528955
+    },
+    "bert_probability_mean": 0.09552297503250884
+  },
+  "model_info": {
+    "path": "configs/lbl_model_20241016.pt",
+    "type": "ablated",
+    "config": {
+      "top_k_epsilon": 1e-12,
+      "vocab_size": 50257,
+      "hidden_size": 128,
+      "mlp_hidden_size": 512,
+      "num_layers": 8,
+      "num_heads": 16,
+      "max_position_embeddings": 256,
+      "window_size": 256,
+      "attention_layers": [
+        "global",
+        "global",
+        "global",
+        "global",
+        "global",
+        "global",
+        "global",
+        "global"
+      ],
+      "k_attention": 2,
+      "k_neurons": 2,
+      "temperature_attention": 1,
+      "temperature_neurons": 1,
+      "has_layer_by_layer_ablation_mask": true,
+      "has_overall_ablation_mask": false,
+      "reconstruction_loss_type": null,
+      "ablation_processing": "soft-top-K-version-1",
+      "loss_coeff_base": 0.5,
+      "loss_coeff_ablated": 0.5,
+      "reconstruction_coeff": 0,
+      "device": "cuda"
+    }
+  }
+}
