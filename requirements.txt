@@ -10,3 +10,5 @@ tqdm==4.66.5
 transformer-lens==2.4.1
 transformers==4.44.2
 wandb==0.18.0
+auto-circuit==1.0.1
+sae-lens==5.1.0

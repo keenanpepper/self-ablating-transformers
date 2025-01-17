@@ -2,27 +2,62 @@ import wandb
 import os
 import tiktoken
 import torch
+import yaml, re
 
 from model.gpt_neo import GPTNeoWithSelfAblation
 from model.config import GPTNeoWithSelfAblationConfig
 
-from auto_circuit.utils.graph_utils import patchable_model
-from utils.compatibility import convert_model_to_hooked_transformer, our_state_dict_to_hooked_transformer, get_hooked_transformer_with_config
-
 from dotenv import load_dotenv
 load_dotenv()
 
-def load_our_model(model_path, device, use_overall_ablation_mask=True, use_layer_by_layer_ablation_mask=False, eval_mode=True):
-    model_specific_config = {
-        'hidden_size': 128,
-        'max_position_embeddings': 256,
-        
-        # These two are currently not mutually exclusive
-        'has_layer_by_layer_ablation_mask': use_layer_by_layer_ablation_mask,
-        'has_overall_ablation_mask': use_overall_ablation_mask,
-    }
+# To safely handle scientific notation in YAML
+loader = yaml.SafeLoader
+loader.add_implicit_resolver(
+    u'tag:yaml.org,2002:float',
+    re.compile(u'''^(?:
+     [-+]?(?:[0-9][0-9_]*)\\.[0-9_]*(?:[eE][-+]?[0-9]+)?
+    |[-+]?(?:[0-9][0-9_]*)(?:[eE][-+]?[0-9]+)
+    |\\.[0-9_]+(?:[eE][-+][0-9]+)?
+    |[-+]?[0-9][0-9_]*(?::[0-5]?[0-9])+\\.[0-9_]*
+    |[-+]?\\.(?:inf|Inf|INF)
+    |\\.(?:nan|NaN|NAN))$''', re.X),
+    list(u'-+0123456789.'))
 
-    model_config = GPTNeoWithSelfAblationConfig(**model_specific_config)
+def load_our_model(model_dir, device=None, eval_mode=True):
+    
+    if device is None:
+        device = "cuda" if torch.cuda.is_available() else "cpu"
+    
+    # Load model (only .pt) and config (only .yaml)
+    model_path = None
+    config_path = None
+    
+    for file in os.listdir(model_dir):
+        if file.endswith(".pt") and file != 'sae.pt':
+            model_path = f"{model_dir}/{file}"
+        elif file.endswith(".yaml"):
+            config_path = f"{model_dir}/{file}"
+            
+    if model_path is None or config_path is None:
+        raise ValueError("Model or config not found in the directory")
+    
+    # Load config
+    with open(config_path, "r") as file:
+        config = yaml.load(file, Loader=loader)
+        
+    # Get only the has_layer_by_layer_ablation_mask and has_overall_ablation_mask
+    clean_config = {
+        "has_layer_by_layer_ablation_mask": False,
+        "has_overall_ablation_mask": False,
+    }
+    
+    ablation_mask_type = config['ablation_mask_level']['value']
+    if ablation_mask_type == 'layer-by-layer':
+        clean_config['has_layer_by_layer_ablation_mask'] = True
+    elif ablation_mask_type == 'overall':
+        clean_config['has_overall_ablation_mask'] = True
+
+    model_config = GPTNeoWithSelfAblationConfig(**clean_config)
     model = GPTNeoWithSelfAblation(model_config).to(device)
     
     # Get state dict
@@ -33,22 +68,6 @@ def load_our_model(model_path, device, use_overall_ablation_mask=True, use_layer
         model.eval()
     
     return model
-
-def prepare_model_acdc(model, device):
-    hooked_model = convert_model_to_hooked_transformer(model)
-
-    # Requirements mentioned in load_tl_model
-    hooked_model.cfg.use_attn_result = True
-    hooked_model.cfg.use_attn_in = True
-    hooked_model.cfg.use_split_qkv_input = True
-    hooked_model.cfg.use_hook_mlp_in = True
-    hooked_model.eval()
-    for param in hooked_model.parameters():
-        param.requires_grad = False
-        
-    patched_model = patchable_model(hooked_model, factorized=True, slice_output="last_seq", separate_qkv=True, device=device)
-        
-    return patched_model
 
 def access_wandb_runs(entity=None, 
                       project="gpt-neo-self-ablation", 
@@ -143,7 +162,7 @@ def download_models(wandb_runs, download_dir):
         
         for file in files:
             
-            if not file.name.endswith(".pt"):
+            if not (file.name.endswith(".pt") or file.name.endswith(".yaml")):
                 continue
             
             file.download(model_folder, exist_ok=True)

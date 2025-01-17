@@ -13,7 +13,7 @@ class GPTNeoWithSelfAblationConfig:
         mlp_hidden_size=None,
         num_layers=8,
         num_heads=16,
-        max_position_embeddings=2048,
+        max_position_embeddings=256,
         window_size=256,
         attention_layers=None,
         k_attention=32,
