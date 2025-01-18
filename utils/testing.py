@@ -71,7 +71,7 @@ def load_our_model(model_dir, device=None, eval_mode=True):
 
 def access_wandb_runs(entity=None, 
                       project="gpt-neo-self-ablation", 
-                      filters={}):
+                      filters={}, get_baseline=False):
     """
     Retrieve and analyze runs from a Weights & Biases project
     
