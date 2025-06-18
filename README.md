@@ -1,7 +1,9 @@
 # self-ablating-transformers
 A self-modeling transformer with an auxiliary output head that is an ablation mask for itself, used either in a second forward pass (global self-ablation) or seprately for each layer (layer-by-layer self ablation, called "local" in the paper).
 
-See https://www.notion.so/apartresearch/Final-Self-Ablating-Transformer-4303c123a0ba4346bd7be95adecf6abf for detailed description (currently private to Apart lab fellows).
+See https://arxiv.org/abs/2505.00509 for the paper!
+
+This was presented as a poster at the ICLR 2025 - Building Trust workshop in Singapore.
 
 # Current status
 
